@@ -15,6 +15,9 @@ android {
         versionName = "1.0"
     }
 
+    // 음원은 원본 폴더를 그대로 assets로 쓴다
+    sourceSets["main"].assets.srcDir("../assets_src/music")
+
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -24,4 +27,5 @@ android {
 
 dependencies {
     implementation("ai.pleos.playground:NaviHelper:3.0.5")
+    testImplementation("junit:junit:4.13.2")
 }

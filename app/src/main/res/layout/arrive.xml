@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg"
+    android:orientation="vertical"
+    android:padding="56dp">
+
+    <TextView
+        android:id="@+id/title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="@color/text"
+        android:textSize="56sp" />
+
+    <TextView
+        android:id="@+id/stats"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:textColor="@color/accent"
+        android:textSize="36sp" />
+
+    <TextView
+        android:id="@+id/scenes"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="32dp"
+        android:layout_weight="1"
+        android:lineSpacingExtra="12dp"
+        android:textColor="@color/text"
+        android:textSize="32sp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="end"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/again"
+            android:layout_width="320dp"
+            android:layout_height="112dp"
+            android:text="다시 달리기"
+            android:textSize="32sp" />
+
+        <Button
+            android:id="@+id/home"
+            android:layout_width="320dp"
+            android:layout_height="112dp"
+            android:layout_marginStart="24dp"
+            android:backgroundTint="@color/accent"
+            android:text="홈으로"
+            android:textColor="@color/bg"
+            android:textSize="32sp" />
+    </LinearLayout>
+</LinearLayout>

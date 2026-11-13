@@ -1,83 +1,230 @@
 package com.deeptactics.roadie
 
 import ai.pleos.playground.navi.constants.NaviErrorCode
-import ai.pleos.playground.navi.constants.NavigationStatus
 import ai.pleos.playground.navi.data.RouteInfo
 import ai.pleos.playground.navi.data.RouteStartInfo
-import ai.pleos.playground.navi.data.RouteStateInfo
 import ai.pleos.playground.navi.helper.NaviHelper
 import ai.pleos.playground.navi.helper.listener.NaviHelperEventListener
 import android.app.Activity
 import android.car.Car
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
+import android.widget.Button
+import android.widget.LinearLayout
+import android.widget.Switch
 import android.widget.TextView
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
-// 3단계 검증용 화면. 속도와 내비 응답을 그대로 찍는다
 class MainActivity : Activity() {
-    private lateinit var speedText: TextView
-    private lateinit var naviText: TextView
-    private var carDrive: CarDrive? = null
     private lateinit var navi: NaviHelper
+    private var naviReady = false
+
+    private var course = COURSES[0]
+    private var simulate = true
+    private var warp = 10.0
+
+    // 주행 중에만 있는 것들
+    private var source: DriveSource? = null
+    private var mixer: Mixer? = null
+    private var director: Director? = null
+    private val passed = mutableListOf<Pair<Scene, Long>>()
+    private var startedAt = 0L
+    private var reclaim = false
+    private var lastTick = 0L
+
+    private val handler = Handler(Looper.getMainLooper())
+    private val tick = object : Runnable {
+        override fun run() {
+            step()
+            if (source != null) handler.postDelayed(this, TICK_MS)
+        }
+    }
 
     private val naviListener = object : NaviHelperEventListener {
-        override fun onRouteStarted(routeStartInfo: RouteStartInfo) = naviLog("경로 탐색 시작 $routeStartInfo")
-        override fun onRoutingCompleted() = naviLog("경로 탐색 완료")
-        override fun onDestinationChanged() = naviLog("목적지 변경됨")
-        override fun onRouteStateInfo(routeStateInfo: RouteStateInfo) = naviLog("경로 상태 $routeStateInfo")
-        override fun onNavigationStatus(navigationStatus: NavigationStatus) = naviLog("내비 상태 $navigationStatus")
-        override fun onError(errorCode: NaviErrorCode) = naviLog("오류 $errorCode")
+        override fun onRouteStarted(routeStartInfo: RouteStartInfo) = Log.d(TAG, "navi 경로 시작 $routeStartInfo").let {}
+        override fun onError(errorCode: NaviErrorCode) = Log.w(TAG, "navi 오류 $errorCode").let {}
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        speedText = TextView(this).apply { textSize = 48f; text = "속도 -" }
-        naviText = TextView(this).apply { textSize = 20f; text = "내비 연결 중" }
-        setContentView(android.widget.LinearLayout(this).apply {
-            orientation = android.widget.LinearLayout.VERTICAL
-            setPadding(48, 48, 48, 48)
-            addView(speedText)
-            addView(naviText)
-        })
-
-        if (checkSelfPermission(Car.PERMISSION_SPEED) == PackageManager.PERMISSION_GRANTED) startSpeed()
-        else requestPermissions(arrayOf(Car.PERMISSION_SPEED), 1)
-
         navi = NaviHelper(applicationContext)
         navi.initialize(onConnected = {
-            naviLog("연결됨")
+            naviReady = true
             navi.addListener(naviListener)
-            // 강릉 경포해변 쪽으로 시험 요청
-            navi.requestRoute(RouteInfo(latitude = 37.8055, longitude = 128.9083, displayLongitude = null, displayLatitude = null,
-                poiName = "경포해변", poiId = "", poiSubId = "0", address = "강원 강릉시 창해로"))
-            navi.getRouteStateInfo()
-        }, onFailed = { naviLog("연결 실패 $it") })
+        }, onFailed = { Log.w(TAG, "navi 연결 실패", it) })
+        showHome()
+    }
+
+    private fun showHome() {
+        setContentView(R.layout.home)
+        val list = findViewById<LinearLayout>(R.id.courses)
+        val cards = COURSES.map { c ->
+            TextView(this).apply {
+                text = "${c.name}\n\n약 ${c.minutes.toInt()}분 · 장면 ${c.scenes.size}곳\n${c.tags.joinToString(" ") { "#$it" }}"
+                textSize = 32f
+                setTextColor(getColor(R.color.text))
+                setPadding(40, 40, 40, 40)
+                list.addView(this, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f).apply { marginEnd = 24 })
+            }
+        }
+        fun paint() = cards.forEachIndexed { i, v ->
+            v.background = GradientDrawable().apply {
+                cornerRadius = 24f
+                setColor(getColor(R.color.card))
+                if (COURSES[i] == course) setStroke(6, getColor(R.color.accent))
+            }
+        }
+        cards.forEachIndexed { i, v -> v.setOnClickListener { course = COURSES[i]; paint() } }
+        paint()
+
+        findViewById<Switch>(R.id.simulate).apply {
+            isChecked = simulate
+            setOnCheckedChangeListener { _, on -> simulate = on }
+        }
+        findViewById<Button>(R.id.warp).apply {
+            text = "${warp.toInt()}x"
+            setOnClickListener {
+                warp = when (warp) { 1.0 -> 10.0; 10.0 -> 20.0; else -> 1.0 }
+                text = "${warp.toInt()}x"
+            }
+        }
+        findViewById<Button>(R.id.start).setOnClickListener { startDrive() }
+    }
+
+    private fun startDrive() {
+        if (!simulate && checkSelfPermission(Car.PERMISSION_SPEED) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf(Car.PERMISSION_SPEED), REQ_SPEED)
+            return
+        }
+        source = if (simulate) SimulatedDrive(course, warp) else CarDrive(this)
+        director = Director(course.scenes, ::onApproach, ::onClimax)
+        mixer = Mixer(this).also { it.start() }
+        passed.clear()
+        startedAt = System.currentTimeMillis()
+        lastTick = SystemClock.elapsedRealtime()
+
+        naviCall {
+            requestRoute(
+                RouteInfo(
+                    latitude = course.destLat, longitude = course.destLon, displayLongitude = null, displayLatitude = null,
+                    poiName = course.destName, poiId = "", poiSubId = "0", address = course.destName,
+                )
+            )
+        }
+
+        setContentView(R.layout.drive)
+        findViewById<DriveView>(R.id.driveView).markers = course.scenes.map { (it.km / course.km).toFloat() }.toFloatArray()
+        findViewById<Button>(R.id.stop).setOnClickListener {
+            endDrive()
+            showHome()
+        }
+        handler.post(tick)
+    }
+
+    // 경로 요청이나 취소를 하면 내비 앱이 앞으로 나온다. 안내는 뒤에서 하고 화면은 다시 가져온다
+    private fun naviCall(block: NaviHelper.() -> Unit) {
+        if (!naviReady) return
+        reclaim = true
+        handler.postDelayed({ reclaim = false }, 5000)
+        navi.block()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        if (reclaim) {
+            reclaim = false
+            startActivity(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT))
+        }
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
-        if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) startSpeed()
-        else speedText.text = "속도 권한 거부됨"
+        if (requestCode == REQ_SPEED && grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) startDrive()
     }
 
-    private fun startSpeed() {
-        carDrive = CarDrive(this) { kmh ->
-            Log.d(TAG, "speed $kmh")
-            speedText.text = "속도 %.1f km/h".format(kmh)
-        }.also { it.start() }
+    private fun step() {
+        val src = source ?: return
+        val d = director ?: return
+        val m = mixer ?: return
+        val t = SystemClock.elapsedRealtime()
+        src.update((t - lastTick) / 1000.0)
+        lastTick = t
+
+        val now = m.now()
+        d.update(now, src.km, src.speedKmh, src::etaSec)
+        m.apply(d)
+
+        val next = course.scenes.firstOrNull { it.km > src.km }
+        findViewById<TextView>(R.id.nextName).text = next?.name ?: course.destName
+        findViewById<TextView>(R.id.remain).text = "%.1f km".format((next?.km ?: course.km) - src.km)
+        findViewById<TextView>(R.id.speed).text = "%.0f km/h".format(src.speedKmh)
+        findViewById<DriveView>(R.id.driveView).apply {
+            progress = (src.km / course.km).toFloat()
+            levels = m.levels()
+            beat = (now % (Director.BAR / 4)).toFloat() / (Director.BAR / 4)
+            invalidate()
+        }
+
+        if (src.km >= course.km && src.speedKmh == 0f) {
+            endDrive()
+            showArrive(src.km)
+        }
     }
 
-    private fun naviLog(msg: String) {
-        Log.d(TAG, "navi $msg")
-        runOnUiThread { naviText.append("\n$msg") }
+    private fun onApproach(scene: Scene) {
+        // 대사(TTS)는 5단계에서 붙인다
+        Log.d(TAG, "접근 ${scene.name}: ${scene.line}")
+    }
+
+    private fun onClimax(scene: Scene) {
+        Log.d(TAG, "클라이맥스 ${scene.name}")
+        passed += scene to System.currentTimeMillis()
+        findViewById<TextView>(R.id.popup)?.apply {
+            text = scene.name
+            animate().alpha(1f).setDuration(300).withEndAction {
+                animate().alpha(0f).setStartDelay(2000).setDuration(500)
+            }
+        }
+    }
+
+    private fun endDrive() {
+        handler.removeCallbacks(tick)
+        source?.stop()
+        source = null
+        mixer?.release()
+        mixer = null
+        director = null
+        naviCall { cancelRoute() }
+    }
+
+    private fun showArrive(km: Double) {
+        setContentView(R.layout.arrive)
+        val min = (System.currentTimeMillis() - startedAt) / 60000.0
+        val clock = SimpleDateFormat("HH:mm", Locale.KOREA)
+        findViewById<TextView>(R.id.title).text = "${course.name} 도착"
+        findViewById<TextView>(R.id.stats).text = "%.1f km · %.0f분".format(km, min)
+        findViewById<TextView>(R.id.scenes).text = passed.joinToString("\n") { (s, at) -> "${clock.format(Date(at))}  ${s.name}" }
+        findViewById<Button>(R.id.again).setOnClickListener { startDrive() }
+        findViewById<Button>(R.id.home).setOnClickListener { showHome() }
     }
 
     override fun onDestroy() {
-        carDrive?.stop()
+        endDrive()
         navi.removeListener(naviListener)
         navi.release()
         super.onDestroy()
     }
 
-    companion object { const val TAG = "ROADIE" }
+    companion object {
+        const val TAG = "ROADIE"
+        const val TICK_MS = 50L
+        const val REQ_SPEED = 1
+    }
 }
