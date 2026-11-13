@@ -1,0 +1,16 @@
+*.iml
+.gradle/
+/local.properties
+/.idea/
+.DS_Store
+/build/
+/captures/
+.externalNativeBuild/
+.cxx/
+*.keystore
+*.jks
+keystore.properties
+
+# 빌드 산출물 중 제출용 apk만 남긴다
+*.apk
+!apk/*.apk
