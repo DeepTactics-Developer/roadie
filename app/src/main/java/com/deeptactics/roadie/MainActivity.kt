@@ -41,7 +41,7 @@ class MainActivity : Activity() {
     // 주행 중에만 있는 것들
     private var source: DriveSource? = null
     private var mixer: Mixer? = null
-    private var director: Director? = null
+    private var arranger: Arranger? = null
     private val passed = mutableListOf<Pair<Scene, Long>>()
     private var startedAt = 0L
     private var reclaim = false
@@ -125,8 +125,9 @@ class MainActivity : Activity() {
             return
         }
         source = if (simulate) SimulatedDrive(course, warp) else CarDrive(this)
-        director = Director(course.scenes, ::onApproach, ::onClimax)
-        mixer = Mixer(this).also { it.start() }
+        val a = Arranger(::onApproach, ::onClimax).apply { scenes = course.scenes }
+        arranger = a
+        mixer = Mixer(this, a).also { it.start() }
         passed.clear()
         startedAt = System.currentTimeMillis()
         lastTick = SystemClock.elapsedRealtime()
@@ -172,7 +173,7 @@ class MainActivity : Activity() {
 
     private fun step() {
         val src = source ?: return
-        val d = director ?: return
+        val d = arranger ?: return
         val m = mixer ?: return
         val t = SystemClock.elapsedRealtime()
         src.update((t - lastTick) / 1000.0)
@@ -180,7 +181,6 @@ class MainActivity : Activity() {
 
         val now = m.now()
         d.update(now, src.km, src.speedKmh, src::etaSec)
-        m.apply(d)
 
         val next = course.scenes.firstOrNull { it.km > src.km }
         findViewById<TextView>(R.id.nextName).text = next?.name ?: course.destName
@@ -189,7 +189,7 @@ class MainActivity : Activity() {
         findViewById<DriveView>(R.id.driveView).apply {
             progress = (src.km / course.km).toFloat()
             levels = m.levels()
-            beat = (now % (Director.BAR / 4)).toFloat() / (Director.BAR / 4)
+            beat = (now % (Arranger.BAR / 4)).toFloat() / (Arranger.BAR / 4)
             invalidate()
         }
 
@@ -223,7 +223,7 @@ class MainActivity : Activity() {
         source = null
         mixer?.release()
         mixer = null
-        director = null
+        arranger = null
         naviCall { cancelRoute() }
     }
 

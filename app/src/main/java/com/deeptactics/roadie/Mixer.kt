@@ -10,30 +10,26 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.abs
 import kotlin.math.sign
+import kotlin.math.sqrt
 import kotlin.math.tanh
 
-// 스템 5개를 한 스트림에 직접 섞는다. 같은 위치에서 같이 돌고 게인만 바뀌니 싱크가 안 어긋난다
-class Mixer(context: Context) {
-    private val stems = listOf("pad", "bass", "arp", "lead", "drums").map { load(context, it) }
-    private val riser = load(context, "riser")
-    private val impact = load(context, "impact")
-    private val loop = stems[0].size
+// 스템 6개를 한 스트림에 직접 섞는다. 마디가 끝날 때마다 Arranger가 고른 마디로 넘어간다.
+// 모든 스템이 같은 위치를 읽으니 파트를 건너뛰어도 싱크가 안 어긋난다
+class Mixer(context: Context, private val arranger: Arranger) {
+    private val stems = STEMS.map { load(context, it) }
+    private val songLen = stems[0].size
 
-    private val gain = FloatArray(5)
-    private val target = FloatArray(5)
-    private val step = FloatArray(5)
     private var master = 0f
-    private var focusLevel = 1f
-    private var duckLevel = 1f
-    private var riserAt = -1L
-    private var climaxAt = -1L
-    private var riserPos = -1
-    private var impactPos = -1
-    private var pos = 0L // 써 넣은 샘플 수
-    private val lock = Any()
+    @Volatile private var focusLevel = 1f
+    @Volatile private var duckLevel = 1f
 
-    @Volatile
-    private var running = false
+    private var written = 0L // 써 넣은 샘플 수
+    private var src = 0 // 곡 안 읽는 위치
+    private var old = -1 // 건너뛸 때 이전 위치. 짧게 겹쳐서 이음새를 감춘다
+    private var fade = 0
+    private val rms = FloatArray(STEMS.size)
+
+    @Volatile private var running = false
 
     private val attrs = AudioAttributes.Builder()
         .setUsage(AudioAttributes.USAGE_MEDIA)
@@ -72,16 +68,8 @@ class Mixer(context: Context) {
     // 지금 들리고 있는 샘플 위치
     fun now(): Long = track.playbackHeadPosition.toLong() and 0xffffffffL
 
-    fun apply(d: Director) = synchronized(lock) {
-        for (i in 0 until 5) if (target[i] != d.gains[i]) {
-            target[i] = d.gains[i]
-            step[i] = abs(target[i] - gain[i]) / d.ramp
-        }
-        riserAt = d.riserAt
-        climaxAt = d.climaxAt
-    }
-
-    fun levels(): FloatArray = synchronized(lock) { gain.copyOf() }
+    // 화면 막대용 스템별 세기(0~1). fx는 뺀다
+    fun levels(): FloatArray = synchronized(rms) { FloatArray(5) { minOf(rms[it] * 5f, 1f) } }
 
     // TTS가 말하는 동안 낮춘다
     fun duck(on: Boolean) {
@@ -98,41 +86,37 @@ class Mixer(context: Context) {
 
     private fun render() {
         val out = ShortArray(CHUNK)
+        val sum = FloatArray(STEMS.size)
         val masterStep = 1f / (0.3f * SR)
         while (running) {
-            synchronized(lock) {
-                val masterTarget = focusLevel * duckLevel
-                for (n in 0 until CHUNK) {
-                    val p = pos + n
-                    if (p == riserAt) riserPos = 0
-                    if (p == climaxAt) {
-                        // 클라이맥스는 마디 경계에서 한 번에. 튀지 않게 아주 짧게만 올린다
-                        impactPos = 0
-                        for (i in 0 until 5) {
-                            target[i] = 1f
-                            step[i] = 1f / 512
-                        }
+            sum.fill(0f)
+            val masterTarget = focusLevel * duckLevel
+            for (n in 0 until CHUNK) {
+                if (written % Arranger.BAR == 0L) {
+                    val to = (arranger.nextBar(written) * Arranger.BAR).toInt()
+                    if (to != src) {
+                        old = src
+                        fade = XFADE
+                        src = to
                     }
-                    val li = (p % loop).toInt()
-                    var s = 0f
-                    for (i in 0 until 5) {
-                        val g = gain[i]
-                        if (g != target[i]) gain[i] = if (g < target[i]) minOf(g + step[i], target[i]) else maxOf(g - step[i], target[i])
-                        s += stems[i][li] * gain[i]
-                    }
-                    if (riserPos >= 0) {
-                        s += riser[riserPos++]
-                        if (riserPos >= riser.size) riserPos = -1
-                    }
-                    if (impactPos >= 0) {
-                        s += impact[impactPos++]
-                        if (impactPos >= impact.size) impactPos = -1
-                    }
-                    if (master != masterTarget) master = if (master < masterTarget) minOf(master + masterStep, masterTarget) else maxOf(master - masterStep, masterTarget)
-                    out[n] = (limit(s * master) * 32767).toInt().toShort()
                 }
-                pos += CHUNK
+                var s = 0f
+                for (i in stems.indices) {
+                    var v = stems[i][src]
+                    if (fade > 0 && old < songLen) v = v * (1f - fade.toFloat() / XFADE) + stems[i][old] * fade / XFADE
+                    sum[i] += v * v
+                    s += v
+                }
+                if (fade > 0) {
+                    fade--
+                    old++
+                }
+                src = (src + 1) % songLen
+                written++
+                if (master != masterTarget) master = if (master < masterTarget) minOf(master + masterStep, masterTarget) else maxOf(master - masterStep, masterTarget)
+                out[n] = (limit(s * master) * 32767).toInt().toShort()
             }
+            synchronized(rms) { for (i in rms.indices) rms[i] = rms[i] * 0.6f + sqrt(sum[i] / CHUNK) * 0.4f }
             track.write(out, 0, CHUNK)
         }
     }
@@ -144,10 +128,12 @@ class Mixer(context: Context) {
     }
 
     companion object {
-        const val SR = Director.SR
+        const val SR = Arranger.SR
         const val CHUNK = 1024
+        const val XFADE = 256
+        val STEMS = listOf("pad", "bass", "arp", "lead", "drums", "fx")
 
-        // 16bit 모노 wav. data 청크 길이만큼만 읽는다(뒤에 다른 청크가 붙어 있을 수 있음)
+        // 16bit 모노 wav. data 청크 길이만큼만 읽는다
         private fun load(context: Context, name: String): FloatArray {
             val bytes = context.assets.open("$name.wav").use { it.readBytes() }
             val size = ByteBuffer.wrap(bytes, 40, 4).order(ByteOrder.LITTLE_ENDIAN).int

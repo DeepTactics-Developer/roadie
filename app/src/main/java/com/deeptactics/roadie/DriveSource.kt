@@ -14,8 +14,9 @@ interface DriveSource {
     fun etaSec(targetKm: Double): Double? = null
 }
 
-// 코스 구간 속도대로 가짜 주행. warp배로 빨리 감다가 장면 앞에서는 1배로 늦춘다
-class SimulatedDrive(private val course: Course, private val warp: Double) : DriveSource {
+// 코스 구간 속도대로 가짜 주행. warp배로 빨리 감다가 장면 앞에서는 1배로 늦춘다.
+// plan이면 지도에 없는 정체를 모르는 채로 달린다(도착 예상용)
+class SimulatedDrive(var course: Course, private val warp: Double, private val plan: Boolean = false) : DriveSource {
     override var speedKmh = 0f
         private set
     override var km = 0.0
@@ -23,7 +24,7 @@ class SimulatedDrive(private val course: Course, private val warp: Double) : Dri
 
     // 배속 중엔 평균 속도로 도착 시간을 잴 수 없어서, 같은 모델을 미리 돌려 본다
     override fun etaSec(targetKm: Double): Double {
-        val ghost = SimulatedDrive(course, warp)
+        val ghost = SimulatedDrive(course, warp, plan = true)
         ghost.km = km
         ghost.speedKmh = speedKmh
         var t = 0.0
@@ -38,7 +39,7 @@ class SimulatedDrive(private val course: Course, private val warp: Double) : Dri
         val rem = course.km - km
         if (rem <= 0) return
         val sdt = dt * timeScale()
-        val target = maxOf(min(course.speedAt(km), brakeLimit()), 3.0)
+        val target = maxOf(min(course.speedAt(km, plan), brakeLimit()), 3.0)
         val step = ACCEL * 3.6 * sdt
         speedKmh = (speedKmh + (target - speedKmh).coerceIn(-step, step)).toFloat()
         km = min(course.km, km + speedKmh / 3600.0 * sdt)
@@ -53,7 +54,7 @@ class SimulatedDrive(private val course: Course, private val warp: Double) : Dri
         var limit = sqrt(2 * ACCEL * (course.km - km) * 1000) * 3.6
         var start = 0.0
         for (s in course.segments) {
-            if (start > km) {
+            if (start > km && !(plan && s.jam)) {
                 val v = s.kmh / 3.6
                 limit = min(limit, sqrt(v * v + 2 * ACCEL * (start - km) * 1000) * 3.6)
             }
