@@ -46,7 +46,7 @@ object Lines {
 
     fun arrive(scenes: List<Scene>, firstDrive: Boolean, crossedKm: Int?, revisit: Boolean): String {
         // 가장 인상적인 장면 하나로 말한다
-        val best = scenes.minByOrNull { listOf(SceneKind.TUNNEL_EXIT, SceneKind.PASS, SceneKind.SEA, SceneKind.LAKE, SceneKind.VIEW, SceneKind.BRIDGE).indexOf(it.kind) }
+        val best = scenes.minByOrNull { Course.PRIORITY.indexOf(it.kind) }
         val main = when (best?.kind) {
             SceneKind.TUNNEL_EXIT -> "터널 빠져나올 때 그 순간, 나도 좋았어."
             SceneKind.SEA -> "바다 옆으로 달린 거, 오래 기억할게."

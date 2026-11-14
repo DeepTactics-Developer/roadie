@@ -39,7 +39,7 @@ class MainActivity : Activity() {
     private var skip = 0
     private lateinit var course: Course
     private var simulate = true
-    private var warp = 20.0
+    private var warp = 40.0
 
     // 주행 중에만 있는 것들
     private var drive: Course? = null
@@ -150,7 +150,7 @@ class MainActivity : Activity() {
         findViewById<TextView>(R.id.warp).apply {
             text = "${warp.toInt()}배속"
             setOnClickListener {
-                warp = when (warp) { 1.0 -> 10.0; 10.0 -> 20.0; else -> 1.0 }
+                warp = when (warp) { 1.0 -> 10.0; 10.0 -> 20.0; 20.0 -> 40.0; else -> 1.0 }
                 text = "${warp.toInt()}배속"
             }
         }
@@ -369,7 +369,7 @@ class MainActivity : Activity() {
         if (simulate && c.segments.none { it.jam && it.untilKm < src.km }) next = next.withJam(src.km)
         drive = next
         (src as? SimulatedDrive)?.course = next
-        arranger?.scenes = next.scenes
+        arranger?.replace(next.scenes, src.km)
         findViewById<RouteView>(R.id.route).course = next
         findViewById<TextView>(R.id.course).text = next.name
         routeTo(next)
@@ -410,6 +410,7 @@ class MainActivity : Activity() {
 
     private fun showArrive(km: Double) {
         val c = drive ?: course
+        Log.d(TAG, "도착 ${c.name} %.1fkm".format(km))
         screen = "arrive"
         setContentView(R.layout.arrive)
         face()?.mood = CarFace.Mood.HAPPY

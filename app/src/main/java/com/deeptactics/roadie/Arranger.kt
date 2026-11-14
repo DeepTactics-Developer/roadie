@@ -41,6 +41,15 @@ class Arranger(
 
     val target get() = scenes.getOrNull(next)
 
+    // 갈림길에서 코스가 바뀌면 장면 목록을 갈아 끼운다. 지금 위치 뒤의 첫 장면부터
+    @Synchronized
+    fun replace(list: List<Scene>, km: Double) {
+        val old = target
+        scenes = list
+        next = list.indexOfFirst { it.km > km }.let { if (it < 0) list.size else it }
+        announced = if (old != null && target?.name == old.name && announced >= 0) next else next - 1
+    }
+
     // etaHint: 주행 소스가 직접 아는 도착 예상(초). 없으면 최근 평균 속도로 잰다
     @Synchronized
     fun update(now: Long, km: Double, speedKmh: Float, etaHint: ((Double) -> Double?)? = null) {

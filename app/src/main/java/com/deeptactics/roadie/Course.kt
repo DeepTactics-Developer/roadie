@@ -39,10 +39,14 @@ class Course(val legs: List<Leg>, val segments: List<Segment> = legs.map { Segme
     val id get() = legs.joinToString("-") { it.to.id }
     val start get() = legs.first().from
 
-    // 장면끼리 너무 붙으면 음악이 못 따라간다. 1.2km 안쪽은 뒤엣것을 뺀다
-    val scenes: List<Scene> = legs.flatMap { it.scenes() }.sortedBy { it.km }.fold(mutableListOf()) { acc, s ->
+    // 장면끼리 너무 붙으면 음악이 못 따라간다. 1.2km 안쪽은 뒤엣것을 뺀다.
+    // 클라이맥스가 너무 잦으면 무뎌지니 인상적인 것부터 MAX_SCENES개만
+    val scenes: List<Scene> = legs.flatMap { it.scenes() }.sortedBy { it.km }.fold(mutableListOf<Scene>()) { acc, s ->
         if (acc.isEmpty() || s.km - acc.last().km >= 1.2) acc += s
         acc
+    }.let { all ->
+        val keep = all.sortedBy { PRIORITY.indexOf(it.kind) }.take(MAX_SCENES).toSet()
+        all.filter { it in keep }
     }
 
     val name: String
@@ -116,7 +120,9 @@ class Course(val legs: List<Leg>, val segments: List<Segment> = legs.map { Segme
     }
 
     companion object {
-        const val JAM_KM = 0.05
+        const val JAM_KM = 0.03
+        const val MAX_SCENES = 3
+        val PRIORITY = listOf(SceneKind.TUNNEL_EXIT, SceneKind.PASS, SceneKind.SEA, SceneKind.LAKE, SceneKind.VIEW, SceneKind.BRIDGE)
         const val JAM_LEAD_SEC = 12.0
         const val FORK_ASK_SEC = 25.0
         const val SLOW_SEC = 45.0 // 장면 앞 이만큼은 1배속. 대사(35초 전)와 빌드업이 들어간다

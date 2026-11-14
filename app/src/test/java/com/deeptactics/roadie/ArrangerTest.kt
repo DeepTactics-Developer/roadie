@@ -57,7 +57,7 @@ class ArrangerTest {
         for (text in WISHES) {
             val c = Composer.compose(Wish.parse(text)).withJam()
             run(c, 1.0, hint = false)
-            for (w in listOf(1.0, 10.0, 20.0)) run(c, w, hint = true)
+            for (w in listOf(1.0, 10.0, 40.0)) run(c, w, hint = true)
         }
     }
 }
