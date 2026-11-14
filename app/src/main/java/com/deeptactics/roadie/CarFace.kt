@@ -19,6 +19,7 @@ class CarFace(context: Context, attrs: AttributeSet?) : View(context, attrs) {
 
     var mood = Mood.CALM
     var talking = false
+    var talkingOf: (() -> Boolean)? = null
     var driving = false
 
     private val p = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -144,14 +145,14 @@ class CarFace(context: Context, attrs: AttributeSet?) : View(context, attrs) {
         }
 
         // 입(그릴). 말할 때 열렸다 닫혔다
-        val open = if (talking) 0.3f + 0.7f * abs(sin(t * 13f)) * (0.6f + 0.4f * abs(sin(t * 3.1f))) else 0f
+        val open = if (talking || talkingOf?.invoke() == true) 0.3f + 0.7f * abs(sin(t * 13f)) * (0.6f + 0.4f * abs(sin(t * 3.1f))) else 0f
         val mouthW = s * if (mood == Mood.HAPPY || mood == Mood.EXCITED) 0.36f else 0.3f
         val mouthY = bodyTop + s * 0.32f
         val mouthH = s * (0.035f + 0.09f * open)
         p.color = 0xFF10202E.toInt()
         r.set(cx - mouthW / 2, mouthY - mouthH / 2, cx + mouthW / 2, mouthY + mouthH / 2)
         canvas.drawRoundRect(r, mouthH / 2, mouthH / 2, p)
-        if (!talking && (mood == Mood.HAPPY || mood == Mood.EXCITED || mood == Mood.CALM)) {
+        if (!(talking || talkingOf?.invoke() == true) && (mood == Mood.HAPPY || mood == Mood.EXCITED || mood == Mood.CALM)) {
             stroke.color = 0xFF10202E.toInt()
             stroke.strokeWidth = s * 0.022f
             r.set(cx - mouthW / 2, mouthY - s * 0.08f, cx + mouthW / 2, mouthY + s * 0.04f)

@@ -18,7 +18,10 @@ import android.util.Log
 import java.util.Locale
 
 // Pleos TTS를 먼저 쓰고, 안 되면 안드로이드 기본 TTS로 넘어간다
-class Speaker(context: Context, private val onSpeaking: (Boolean) -> Unit) {
+class Speaker(context: Context) {
+    // 말하는 중인지. 화면과 서비스가 읽어 간다
+    @Volatile var talking = false
+        private set
     private val ui = Handler(Looper.getMainLooper())
     private var pleos: PleosTts? = null
     private var basic: TextToSpeech? = null
@@ -68,7 +71,7 @@ class Speaker(context: Context, private val onSpeaking: (Boolean) -> Unit) {
         })
     }
 
-    private fun speaking(on: Boolean) { ui.post { onSpeaking(on) } }
+    private fun speaking(on: Boolean) { talking = on }
 
     private fun fallBack(context: Context) {
         if (basic != null) return

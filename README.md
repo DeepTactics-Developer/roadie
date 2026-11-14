@@ -13,6 +13,12 @@ Pleos Connect 차량 환경용 앱입니다. 반려차 "로디"에게 "40분, �
 - 결과는 지도 그림, 예상 시간, 거리, 신호 수, 장면 목록, 갈림길 위치로 보여 줍니다. "다른 코스"로 다음 후보를 볼 수 있습니다.
 - 출발하면 NaviHelper로 출발지를 목적지로 하고 경유지 2곳을 넣어 경로를 요청합니다.
 
+### 내비와 함께 쓰기
+- 출발하면 NaviHelper로 경로를 요청하고, 내비 앱이 화면을 차지합니다. 우리 앱은 화면에 떠 있지 않아도 **주행 서비스(포그라운드 서비스)**로 계속 돌아갑니다. 음악, 반려차 음성, 갈림길 질문과 음성 인식이 모두 내비가 앞에 있는 상태에서 이어집니다.
+- 화면은 출발 전(코스 짜기)과 도착 후(카드, 일기)에 씁니다. 주행 중에는 "로디와 드라이브" 알림이 떠 있고, 알림에서 `그만 달리기`를 누를 수 있습니다.
+- 갈림길이 다가오면 음성으로 묻고, 내비 화면 위에 `← 바다 / 시내 →` 버튼이 달린 알림도 함께 띄웁니다. 말로 답해도 되고 알림 버튼을 눌러도 됩니다.
+- 도착하면 서비스가 기록을 저장하고 음성으로 한마디를 한 뒤, "도착했어" 알림을 띄웁니다. 앱을 열면 도착 카드가 나옵니다.
+
 ### 갈림길 선택
 - 코스 중간에 성격이 다른 길로 갈라지는 지점을 미리 찾아 둡니다.
 - 갈림길이 다가오면 "곧 갈림길이야. 왼쪽은 바다, 오른쪽은 시내. 어디로 갈래?"라고 묻고 음성 인식으로 대답을 듣습니다. 화면의 큰 버튼으로도 고를 수 있고, 대답이 없으면 원래 길로 갑니다.
@@ -49,7 +55,7 @@ Pleos Connect 차량 환경용 앱입니다. 반려차 "로디"에게 "40분, �
 - Pleos SpeechToText 3.3.1: 코스 요청과 갈림길 대답 인식
 - 차량 속도: AAOS Car API(`android.car`, `CarPropertyManager`의 PERF_VEHICLE_SPEED)
 
-필요한 권한: `android.car.permission.CAR_SPEED`, `pleos.car.permission.NAVI_ROUTE`, `pleos.car.permission.NAVI_ROUTE_SEARCH`, `pleos.car.permission.TTS_SERVICE`, `pleos.car.permission.STT_SERVICE`
+필요한 권한: `android.car.permission.CAR_SPEED`, `pleos.car.permission.NAVI_ROUTE`, `pleos.car.permission.NAVI_ROUTE_SEARCH`, `pleos.car.permission.TTS_SERVICE`, `pleos.car.permission.STT_SERVICE`, `android.permission.FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_MEDIA_PLAYBACK`, `POST_NOTIFICATIONS`(처음 실행할 때 알림 허용 창이 한 번 뜹니다)
 
 ## 개발·테스트 환경
 - Android Studio Rabbit 2 (2026.2.2)
@@ -74,12 +80,15 @@ APK는 `apk/` 폴더에 있습니다: `apk/DeepTactics_ROADIE_release.apk`
 - 에뮬레이터에서 Pleos 음성 인식은 서버 인증이 없어 기기 안 인식으로 넘어가는 것까지 확인했습니다. 실제 인식 결과는 마이크를 연결해서 확인해야 합니다.
 - 내비 경로 요청은 에뮬레이터 내비가 응답하는 것까지 확인했습니다. 에뮬레이터 내비의 현재 위치가 강릉이 아니라서 내비가 안내하는 실제 거리는 앱의 코스 거리와 다릅니다.
 - 실제 차량 속도 입력은 에뮬레이터에서 값(0 km/h)이 들어오는 것까지 확인했습니다.
+- 내비 앱이 화면을 차지하는 동안 우리 화면은 보이지 않습니다. 시연 영상에서 우리 화면을 보이려면 하단 앱 바에서 ROADIE를 눌러 돌아오면 됩니다(주행은 계속됩니다).
+- 알림 위의 갈림길 버튼은 에뮬레이터에서 내비 위에 뜨고 눌러서 동작하는 것까지 확인했습니다. 실제 차량의 알림 정책은 확인하지 못했습니다.
 - 바다 코스는 40배속으로 처음부터 도착까지 약 5분 걸립니다.
 
 ## 폴더 구조
 - `app/` 안드로이드 앱 소스
   - `RoadMap.kt` 도로 조각 데이터, `Composer.kt` 말 해석과 순환 코스 생성, `Course.kt` 코스와 갈림길
   - `Arranger.kt` 파트 재배열 규칙, `Mixer.kt` 스템 믹서, `DriveSource.kt` 시뮬레이션 주행
+  - `DriveService.kt` 주행 서비스, `Session.kt` 서비스와 화면이 주고받는 상태, `RoadieApp.kt` 공용 객체(음성, 내비)
   - `Speaker.kt` 음성 출력, `Listener.kt` 음성 인식, `Lines.kt` 대사, `Taste.kt` 테이스팅 노트와 취향
 - `app/src/test/` 음악 타이밍과 코스 생성 테스트
 - `assets_src/music/` 음악 스템 원본(wav)
