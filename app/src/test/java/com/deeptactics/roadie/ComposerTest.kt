@@ -45,4 +45,20 @@ class ComposerTest {
         assertTrue(c.scenes.any { it.km - j.untilKm in 0.05..0.3 })
         assertEquals(c.km, c.segments.last().untilKm, 1e-9)
     }
+
+    @Test
+    fun variety() {
+        for (text in ArrangerTest.WISHES) {
+            val w = Wish.parse(text)
+            val shown = (0 until 4).map { Composer.compose(w, skip = it) }
+            for (c in shown) println("후보 $text → ${c.name} ${"%.0f".format(c.minutes)}분 ${"%.1f".format(c.km)}km 장면 ${c.scenes.joinToString { it.name }} 갈림길 ${c.fork?.let { f -> "${f.node.name} %.1fkm ${f.left.label}/${f.right.label}".format(f.km) }}")
+            for (i in shown.indices) for (j in i + 1 until shown.size) {
+                assertTrue("$text ${i}번째와 ${j}번째 코스가 너무 비슷함", Composer.overlap(shown[i], shown[j]) < 0.6)
+            }
+            for (c in shown) {
+                val f = c.fork ?: continue
+                assertTrue("$text 갈림길이 장면과 겹침", Composer.forkClear(c, f.km, strict = false))
+            }
+        }
+    }
 }

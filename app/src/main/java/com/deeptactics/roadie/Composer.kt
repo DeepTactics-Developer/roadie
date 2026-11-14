@@ -46,13 +46,17 @@ class Wish(
 
 // 도로 조각을 이어서 출발지로 돌아오는 순환 코스를 만든다
 object Composer {
+    private const val MAX_LOOP_KM = 100.0
+    private const val SAME_COURSE = 0.6
+    private const val FORK_LOOKAHEAD = 20
+    private const val FORK_BONUS = 0.8
     private val loops: List<List<Leg>> by lazy { findLoops() }
 
     // 강릉역에서 나가서 같은 노드를 두 번 안 지나고 돌아오는 길을 전부 찾는다. 조각이 20개 남짓이라 금방이다
     private fun findLoops(): List<List<Leg>> {
         val out = mutableListOf<List<Leg>>()
         fun dfs(at: String, path: List<Leg>, seen: Set<String>, km: Double) {
-            if (path.size > 8) return
+            if (path.size > 8 || km > MAX_LOOP_KM) return
             for (e in RoadMap.edges) {
                 val rev = e.b == at
                 if (e.a != at && !rev) continue
@@ -90,21 +94,49 @@ object Composer {
         }
     }
 
-    // 점수 순으로 줄 세운 코스. skip번째를 준다("다른 코스")
+    // 점수 순으로 줄 세우되, 앞서 나온 코스와 길이 많이 겹치면(같은 길을 거꾸로 도는 것 포함) 건너뛴다.
+    // skip번째를 준다("다른 코스")
     fun compose(w: Wish, taste: Map<Tag, Double> = emptyMap(), skip: Int = 0): Course {
-        val ranked = loops.map { Course(it) }
+        val scored = loops.map { Course(it) }
             .filter { it.scenes.isNotEmpty() }
-            .sortedByDescending { score(it, w, taste) }
-        val c = ranked[skip % ranked.size]
-        c.fork = fork(c, w, taste)
+            .map { it to score(it, w, taste) }
+            .sortedByDescending { it.second }
+        // 갈림길이 있는 코스가 이야기가 되니, 앞쪽 후보에는 가산점을 준다
+        val head = scored.take(FORK_LOOKAHEAD).map { (c, sc) ->
+            c.fork = fork(c, w, taste)
+            c to sc + if (c.fork != null) FORK_BONUS else 0.0
+        }
+        val ranked = (head + scored.drop(FORK_LOOKAHEAD)).sortedByDescending { it.second }.map { it.first }
+        val picks = mutableListOf<Course>()
+        for (c in ranked) {
+            if (picks.none { overlap(it, c) >= SAME_COURSE }) picks += c
+            if (picks.size > skip) break
+        }
+        val c = picks.getOrNull(skip) ?: picks[skip % picks.size]
+        if (c.fork == null) c.fork = fork(c, w, taste)
         return c
+    }
+
+    // 두 코스가 같은 길 조각을 얼마나 나눠 쓰는지 0~1
+    fun overlap(a: Course, b: Course): Double {
+        val x = a.legs.map { it.edge }.toSet()
+        val y = b.legs.map { it.edge }.toSet()
+        return x.intersect(y).size.toDouble() / x.union(y).size
+    }
+
+    // 갈림길 질문은 장면 대사나 드롭과 겹치면 안 된다. 앞쪽 80초, 뒤쪽 40초 안에 장면이 없어야 한다.
+    // 그런 자리가 없으면 50초, 25초까지 줄여서 다시 찾는다
+    fun forkClear(c: Course, at: Double, strict: Boolean = true): Boolean {
+        val v = c.speedAt(at, plan = true) / 3600
+        val (ahead, behind) = if (strict) 80 to 40 else 50 to 25
+        return c.scenes.none { it.km - at in -v * behind..v * ahead }
     }
 
     // 코스 중간에서 성격이 다른 길로 갈라지는 지점을 하나 찾는다
     fun fork(c: Course, w: Wish, taste: Map<Tag, Double> = emptyMap()): Fork? {
-        for (i in 1 until c.legs.size) {
+        for (strict in listOf(true, false)) for (i in 1 until c.legs.size) {
             val at = c.legs[i].fromKm
-            if (at < 2.0) continue
+            if (at < 2.0 || at > c.km - 3.0 || !forkClear(c, at, strict)) continue
             val head = c.legs.subList(0, i)
             val mine = label(c.legs.drop(i))
             val alt = loops.asSequence()

@@ -30,6 +30,8 @@ class Edge(
     val climb: Int, // a→b로 갈 때 오르는 높이(m). 내려가면 음수
     val tags: Set<Tag>,
     val features: List<Feature> = emptyList(),
+    val sea: Double = 0.0, // 길이 중 바다에 붙어 달리는 비율(잰 값)
+    val lake: Double = 0.0, // 호숫가 비율
 )
 
 object RoadMap {

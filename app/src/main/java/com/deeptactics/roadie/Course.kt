@@ -47,7 +47,12 @@ class Course(val legs: List<Leg>, val segments: List<Segment> = legs.map { Segme
         acc
     }.let { all ->
         val keep = all.sortedBy { PRIORITY.indexOf(it.kind) }.take(MAX_SCENES).toSet()
-        all.filter { it in keep }
+        val seen = mutableMapOf<String, Int>()
+        all.filter { it in keep }.map { sc ->
+            // 이름이 같은 장면은 번호를 붙여 구분한다
+            val n = seen.merge(sc.name, 1, Int::plus)!!
+            if (n == 1) sc else Scene(sc.km, "${sc.name} $n", sc.kind, sc.line, sc.tunnelFrom)
+        }
     }
 
     val name: String
@@ -82,7 +87,12 @@ class Course(val legs: List<Leg>, val segments: List<Segment> = legs.map { Segme
     // 갈림길은 이만큼 앞에서 묻는다
     fun forkAskKm() = fork?.let { kmAhead(it.km, FORK_ASK_SEC) } ?: 0.0
 
-    fun share(tag: Tag) = legs.filter { tag in it.edge.tags }.sumOf { it.edge.km } / km
+    // 바다와 호숫가는 잰 비율, 나머지는 그 성격으로 분류된 조각의 길이 비율
+    fun share(tag: Tag) = when (tag) {
+        Tag.SEA -> legs.sumOf { it.edge.km * it.edge.sea } / km
+        Tag.LAKE -> legs.sumOf { it.edge.km * it.edge.lake } / km
+        else -> legs.filter { tag in it.edge.tags }.sumOf { it.edge.km } / km
+    }
 
     // plan이면 정체를 모르는 예상 속도(정체 구간은 바로 앞 구간 속도로)
     fun speedAt(km: Double, plan: Boolean = false): Double {

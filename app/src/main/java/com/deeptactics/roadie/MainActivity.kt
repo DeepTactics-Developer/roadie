@@ -131,6 +131,7 @@ class MainActivity : Activity() {
         findViewById<View>(R.id.other).setOnClickListener {
             skip++
             course = Composer.compose(wish, records.taste(), skip)
+            say(Lines.composed(wish, course))
             showCourse()
         }
         findViewById<Switch>(R.id.simulate).apply {
@@ -157,7 +158,9 @@ class MainActivity : Activity() {
         findViewById<RouteView>(R.id.route).course = course
         findViewById<TextView>(R.id.wish).text = wish.summary()
         findViewById<TextView>(R.id.name).text = course.name
-        findViewById<TextView>(R.id.stats).text = "약 %d분 · %.1f km · 신호 %d개".format(course.minutes.toInt(), course.km, course.signals)
+        val shares = listOf(Tag.SEA, Tag.LAKE, Tag.MOUNTAIN).filter { course.share(it) >= 0.1 }.joinToString(" · ") { "${it.word} ${(course.share(it) * 100).toInt()}%" }
+        findViewById<TextView>(R.id.stats).text = "약 %d분 · %.1f km · 신호 %d개".format(course.minutes.toInt(), course.km, course.signals) +
+            if (shares.isEmpty()) "" else "\n$shares"
         val f = course.fork
         findViewById<TextView>(R.id.scenes).text = (course.scenes.map { "●  ${it.name}" } +
             listOfNotNull(f?.let { "◆  ${it.node.name}에서 갈림길 (${it.left.label} / ${it.right.label})" })).joinToString("\n")

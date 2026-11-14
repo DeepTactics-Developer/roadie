@@ -38,12 +38,21 @@ NODES = [
     ('simgok', '심곡항', 37.6516, 129.0450),
     ('seongsan', '대관령 옛길 입구', 37.7158, 128.8296),
     ('pass', '대관령 마루', 37.6876, 128.7525),
+    # 아래는 지도에서 이름으로 찾은 좌표
+    ('anin', '안인진', 37.7277, 128.9889),
+    ('jumunjin', '주문진항', 37.8919, 128.8301),
+    ('sogeumgang', '소금강', 37.8160, 128.7067),
+    ('okgye', '옥계해변', 37.6303, 129.0484),
 ]
 LINKS = [
     (HOME, 'ojuk'), (HOME, 'lake'), ('ojuk', 'lake'), ('lake', 'gbeach'), ('gbeach', 'sacheon'),
     ('sacheon', 'yeongok'), ('yeongok', 'ojuk'), ('gbeach', 'anmok'), (HOME, 'anmok'), ('anmok', 'namhang'),
     ('namhang', 'jdj'), ('jdj', 'simgok'), ('simgok', HOME), ('jdj', HOME), (HOME, 'seongsan'),
     ('seongsan', 'pass'), ('pass', HOME), ('seongsan', 'ojuk'), ('sacheon', 'seongsan'),
+    ('namhang', 'anin'), ('anin', 'jdj'), (HOME, 'anin'),
+    ('yeongok', 'jumunjin'), ('jumunjin', 'sacheon'),
+    ('yeongok', 'sogeumgang'), ('sogeumgang', 'ojuk'),
+    ('simgok', 'okgye'), ('okgye', HOME),
 ]
 BBOX = (37.58, 128.68, 37.92, 129.12)
 
@@ -53,7 +62,7 @@ SIGNAL_NEAR = 30.0
 TUNNEL_NEAR = 15.0
 COAST_NEAR = 250.0
 LAKE_NEAR = 150.0
-MIN_TUNNEL = 250.0
+MIN_TUNNEL = 400.0
 MIN_SEA = 600.0
 MIN_LAKE = 400.0
 MIN_BRIDGE = 300.0
@@ -417,7 +426,7 @@ def build_edge(a, b, osm, nodes):
         tags.append('MOUNTAIN' if nsig / (L / 1000) < 0.3 else 'CITY')
 
     return dict(a=a, b=b, road=road or '', km=km(L), kmh=kmh, signals=nsig, curves=ncurve, climb=climb,
-                tags=tags, feats=feats, report=dict(tunnel=share(tun_m), sea=share(cst_m), lake=share(lak_m), bridge=share(brd_m), dist=dist))
+                tags=tags, feats=feats, sea=share(cst_m), lake=share(lak_m), report=dict(tunnel=share(tun_m), sea=share(cst_m), lake=share(lak_m), bridge=share(brd_m), dist=dist))
 
 
 def kt_str(s):
@@ -434,8 +443,9 @@ def write_kotlin(nodes, edges):
     lines += ['    )', '', '    val edges = listOf(']
     for e in edges:
         tags = ', '.join('Tag.' + t for t in e['tags'])
-        lines.append(f'        Edge({kt_str(e["a"])}, {kt_str(e["b"])}, {kt_str(e["road"])}, {e["km"]:.3f}, {float(e["kmh"])}, {e["signals"]}, {e["curves"]}, {e["climb"]}, setOf({tags}),')
+        tail = f'sea = {e["sea"]:.2f}, lake = {e["lake"]:.2f}'
         if e['feats']:
+            lines.append(f'        Edge({kt_str(e["a"])}, {kt_str(e["b"])}, {kt_str(e["road"])}, {e["km"]:.3f}, {float(e["kmh"])}, {e["signals"]}, {e["curves"]}, {e["climb"]}, setOf({tags}),')
             lines.append('            listOf(')
             for f in sorted(e['feats'], key=lambda f: f['at']):
                 fl = ''
@@ -446,7 +456,10 @@ def write_kotlin(nodes, edges):
                 ln = f', len = {f["len"] / 1000:.3f}' if f['len'] else ''
                 lines.append(f'                Feature({f["at"] / 1000:.3f}, SceneKind.{f["kind"]}, {kt_str(f["name"])}, {kt_str(f["line"])}{ln}{fl}),')
             lines.append('            ),')
-        lines.append('        ),')
+            lines.append(f'            {tail},')
+            lines.append('        ),')
+        else:
+            lines.append(f'        Edge({kt_str(e["a"])}, {kt_str(e["b"])}, {kt_str(e["road"])}, {e["km"]:.3f}, {float(e["kmh"])}, {e["signals"]}, {e["curves"]}, {e["climb"]}, setOf({tags}), {tail}),')
     lines += ['    )', '}', '']
     with open(OUT, 'w', encoding='utf-8', newline='\n') as f:
         f.write('\n'.join(lines))
