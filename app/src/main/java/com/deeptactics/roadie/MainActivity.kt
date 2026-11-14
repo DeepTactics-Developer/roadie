@@ -9,11 +9,16 @@ import android.app.Activity
 import android.car.Car
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import android.text.SpannableStringBuilder
+import android.text.style.ForegroundColorSpan
+import android.text.style.RelativeSizeSpan
+import android.text.style.StyleSpan
 import android.util.Log
 import android.widget.Button
 import android.widget.LinearLayout
@@ -26,6 +31,8 @@ import java.util.Locale
 class MainActivity : Activity() {
     private lateinit var navi: NaviHelper
     private var naviReady = false
+    private lateinit var speaker: Speaker
+    private lateinit var records: Records
 
     private var course = COURSES[0]
     private var simulate = true
@@ -55,6 +62,8 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        records = Records(this)
+        speaker = Speaker(this) { mixer?.duck(it) }
         navi = NaviHelper(applicationContext)
         navi.initialize(onConnected = {
             naviReady = true
@@ -65,11 +74,22 @@ class MainActivity : Activity() {
 
     private fun showHome() {
         setContentView(R.layout.home)
+        val greeting = Lines.greeting(records.km, records.count)
+        findViewById<TextView>(R.id.bubble).text = greeting
+        findViewById<TextView>(R.id.record).text = "함께 달린 거리 %.1f km · 드라이브 %d회".format(records.km, records.count)
+        speaker.say(greeting)
         val list = findViewById<LinearLayout>(R.id.courses)
         val cards = COURSES.map { c ->
             TextView(this).apply {
-                text = "${c.name}\n\n약 ${c.minutes.toInt()}분 · 장면 ${c.scenes.size}곳\n${c.tags.joinToString(" ") { "#$it" }}"
-                textSize = 32f
+                val info = "약 ${c.minutes.toInt()}분 · 장면 ${c.scenes.size}곳\n${c.tags.joinToString(" ") { "#$it" }}"
+                text = SpannableStringBuilder("${c.name}\n\n").apply {
+                    setSpan(RelativeSizeSpan(1.5f), 0, c.name.length, 0)
+                    setSpan(StyleSpan(Typeface.BOLD), 0, c.name.length, 0)
+                    val from = length
+                    append(info)
+                    setSpan(ForegroundColorSpan(getColor(R.color.sub)), from, length, 0)
+                }
+                textSize = 30f
                 setTextColor(getColor(R.color.text))
                 setPadding(40, 40, 40, 40)
                 list.addView(this, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f).apply { marginEnd = 24 })
@@ -179,12 +199,13 @@ class MainActivity : Activity() {
     }
 
     private fun onApproach(scene: Scene) {
-        // 대사(TTS)는 5단계에서 붙인다
         Log.d(TAG, "접근 ${scene.name}: ${scene.line}")
+        speaker.say(scene.line)
     }
 
     private fun onClimax(scene: Scene) {
         Log.d(TAG, "클라이맥스 ${scene.name}")
+        speaker.stop()
         passed += scene to System.currentTimeMillis()
         findViewById<TextView>(R.id.popup)?.apply {
             text = scene.name
@@ -196,6 +217,7 @@ class MainActivity : Activity() {
 
     private fun endDrive() {
         handler.removeCallbacks(tick)
+        speaker.stop()
         source?.stop()
         source = null
         mixer?.release()
@@ -211,12 +233,24 @@ class MainActivity : Activity() {
         findViewById<TextView>(R.id.title).text = "${course.name} 도착"
         findViewById<TextView>(R.id.stats).text = "%.1f km · %.0f분".format(km, min)
         findViewById<TextView>(R.id.scenes).text = passed.joinToString("\n") { (s, at) -> "${clock.format(Date(at))}  ${s.name}" }
+        val scenes = passed.map { it.first }
+        val before = records.km
+        val line = Lines.arrive(
+            scenes, records.count == 0,
+            if (((before + km) / 100).toInt() > (before / 100).toInt()) ((before + km) / 100).toInt() * 100 else null,
+            records.visited(course.id),
+        )
+        records.add(km, course.id, scenes.map { it.name })
+        findViewById<TextView>(R.id.line).text = line
+        findViewById<TextView>(R.id.record).text = "함께 달린 거리 %.1f km · 드라이브 %d회".format(records.km, records.count)
+        speaker.say(line)
         findViewById<Button>(R.id.again).setOnClickListener { startDrive() }
         findViewById<Button>(R.id.home).setOnClickListener { showHome() }
     }
 
     override fun onDestroy() {
         endDrive()
+        speaker.release()
         navi.removeListener(naviListener)
         navi.release()
         super.onDestroy()

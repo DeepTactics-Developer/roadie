@@ -60,8 +60,8 @@
         android:layout_height="wrap_content"
         android:layout_gravity="center"
         android:alpha="0"
-        android:background="#CC0E1116"
-        android:padding="40dp"
+        android:shadowColor="#000000"
+        android:shadowRadius="32"
         android:textColor="@color/text"
         android:textSize="96sp"
         android:textStyle="bold" />
