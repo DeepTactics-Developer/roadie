@@ -88,7 +88,7 @@ Pleos Connect 차량 환경용 앱입니다. 반려차 "로디"에게 "40분, �
 - Pleos SpeechToText 3.3.1: 코스 요청과 갈림길 대답 인식
 - 차량 속도: AAOS Car API(`android.car`, `CarPropertyManager`의 PERF_VEHICLE_SPEED)
 
-필요한 권한: `android.car.permission.CAR_SPEED`, `pleos.car.permission.NAVI_ROUTE`, `pleos.car.permission.NAVI_ROUTE_SEARCH`, `pleos.car.permission.TTS_SERVICE`, `pleos.car.permission.STT_SERVICE`, `android.permission.FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_MEDIA_PLAYBACK`, `POST_NOTIFICATIONS`(처음 실행할 때 알림 허용 창이 한 번 뜹니다)
+필요한 권한: `android.car.permission.CAR_SPEED`, `pleos.car.permission.NAVI_ROUTE`, `pleos.car.permission.NAVI_ROUTE_SEARCH`, `pleos.car.permission.TTS_SERVICE`, `pleos.car.permission.STT_SERVICE`, `android.permission.FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_MEDIA_PLAYBACK`, `POST_NOTIFICATIONS`(처음 실행할 때 알림 허용 창이 한 번 뜹니다), `INTERNET`(연결 구간 선 모양을 받을 때만 씀)
 
 ## 개발·테스트 환경
 - Android Studio Rabbit 2 (2026.2.2)
@@ -99,13 +99,13 @@ Pleos Connect 차량 환경용 앱입니다. 반려차 "로디"에게 "40분, �
 ## 실행 방법
 1. Android Studio에서 Pleos Connect v2.1.0 AVD를 만들고, 기본 부팅(Default boot)을 Cold로 설정합니다.
 2. 에뮬레이터를 실행합니다. 부팅이 끝나면 아래 둘 중 하나로 설치합니다.
-   - 제출용 APK: `adb install apk/DeepTactics_ROADIE_release.apk`
+   - 제출용 APK: `adb install apk/박주형_ROADIE_release.apk`
    - 소스에서: 이 저장소를 Android Studio로 열고 Gradle 동기화 후 `app`을 실행합니다.
 3. 음성으로 말하려면 에뮬레이터 확장 컨트롤(Extended controls) > Microphone에서 "Virtual microphone uses host audio input"을 켭니다. 마이크 없이도 예시 문장과 화면 버튼으로 모든 흐름을 진행할 수 있습니다.
 4. 홈에서 말하거나 예시를 눌러 코스를 만든 뒤 `출발`을 누릅니다. 시뮬레이션 주행은 기본으로 켜져 있고 옆 버튼으로 배속을 바꿉니다.
 5. 처음 상태로 시연하려면 기록을 지웁니다: `adb shell pm clear com.deeptactics.roadie`
 
-APK는 `apk/` 폴더에 있습니다: `apk/DeepTactics_ROADIE_release.apk`
+APK는 `apk/` 폴더에 있습니다: `apk/박주형_ROADIE_release.apk` (서명한 release 버전)
 
 ## 알아둘 점
 - 도로 데이터는 수도권과 강릉만 있습니다. 지점 사이의 경로는 OSRM이 고른 일반 최단 경로라서 "가장 풍경 좋은 길"이 아니고, 장면 판정은 위의 단순한 기준입니다. 전국 확대(서버에서 지역별로 생성), 실제 GPS를 코스 도로에 맞춰 진행률을 정확히 재는 방식, 시야와 노면 같은 판정은 로드맵입니다. 지금 진행률은 속도를 적분해 구하고, 실제 주행에서는 경유지 근처에서 내비의 남은 거리로 바로잡습니다. 경유지 사이에서 다른 길로 가면 다음 경유지 3km 안에 들어갈 때까지 어긋날 수 있습니다. 위치를 계속 코스 도로에 맞추는 방식(GPS 지도 매칭)과 벗어났을 때 새 코스를 다시 짜는 것은 로드맵입니다.
@@ -131,7 +131,7 @@ APK는 `apk/` 폴더에 있습니다: `apk/DeepTactics_ROADIE_release.apk`
 - `tools/osm_extract.py`, `tools/build_roads.py`, `tools/regions/` 지도 데이터에서 지역별 도로 조각 값과 도로 모양을 재서 JSON을 만드는 스크립트(인터넷 필요, 파이썬과 pyosmium)
 - `tools/basemap.py` 앱 지도의 배경을 지역별로 뽑는 스크립트(pyosmium, shapely), `tools/geo.py` 좌표 줄이기와 압축
 - `tools/make_loops.py` 음악 스템 생성 스크립트 (numpy 필요)
-- `apk/` 제출용 release APK
+- `apk/` 제출용 release APK(`박주형_ROADIE_release.apk`)
 
 ## 음원
 앱의 음원은 `tools/make_loops.py`로 합성한 곡이며 외부 음원은 사용하지 않았습니다.
