@@ -42,6 +42,10 @@ class DriveService : Service() {
     private var askDeadline = 0L
     private var lateAsked = false
     private var detoured = false
+    private val told = HashSet<String>() // 이미 들려준 이야기
+    private var telling = false
+    private var tellAt = 0L
+    private var saidAt = 0L
     private var detour: Course? = null // 막힐 때 길을 바꾸면 갈 코스. 있으면 지금 질문은 정체 질문
     private var wasTalking = false
     private var jamSaid = false
@@ -87,6 +91,8 @@ class DriveService : Service() {
         listenAfterTalk = false
         lateAsked = false
         detoured = false
+        told.clear()
+        telling = false
         detour = null
         jamSaid = false
         slowSince = 0L
@@ -123,6 +129,7 @@ class DriveService : Service() {
     }
 
     private fun say(text: String) {
+        saidAt = SystemClock.elapsedRealtime()
         Session.bubble = text
         speaker.say(text)
     }
@@ -183,11 +190,25 @@ class DriveService : Service() {
 
         // 막혀서 예정보다 많이 늦어지면, 그대로 갈지 길을 바꿔 시간을 맞출지 묻는다.
         // 갈림길 질문이 끝난 뒤, 다음 장면이 1km 넘게 남았을 때만
-        if (!lateAsked && Session.ask == null && f == null && src.km > 0.3 && src.speedKmh < 20 && (target?.let { it.km - src.km > 1.0 } != false)) {
+        if (!lateAsked && !telling && Session.ask == null && f == null && src.km > 0.3 && src.speedKmh < 20 && (target?.let { it.km - src.km > 1.0 } != false)) {
             val late = stats.total - c.planMinutes(0.0, src.km) * 60
             if (late > maxOf(LATE_ASK_SEC, c.minutes * 60 * 0.12)) askLate(c, src.km, late)
         }
         if (Session.ask != null && detour != null && t > askDeadline) resolveLate(null)
+
+        // 장면 사이가 비면 지나는 곳 이야기. 끝까지 말할 틈이 있을 때만 꺼낸다
+        if (telling && !speaker.busy && t - tellAt > 1500) telling = false
+        if (!telling && Session.ask == null && !speaker.busy && t - saidAt > 4000 && a.part in QUIET) {
+            Docent.pick(c, src.km, told, Docent.gap(c, src.km, f != null && !forkAsked))?.let { (name, text) ->
+                Log.d(MainActivity.TAG, "도슨트 $name")
+                told += name
+                telling = true
+                tellAt = t
+                say(text)
+            }
+        }
+        // 질문하거나 이야기하는 동안 시뮬레이션은 1배로. 대답하기 전에 정체가 끝나거나 이야기 도중 장소를 지나치지 않게
+        (src as? SimulatedDrive)?.hold = (Session.ask != null && detour != null) || telling
 
         if (t - notifiedAt > 4000) {
             notifiedAt = t
@@ -212,7 +233,6 @@ class DriveService : Service() {
         listenAfterTalk = false
         listener.stop()
         nm.cancel(ASK_ID)
-        (source as? SimulatedDrive)?.hold = false
     }
 
     // 화면이나 알림 버튼. 왼쪽 오른쪽
@@ -237,7 +257,6 @@ class DriveService : Service() {
         val save = (rest - d.planMinutes(km, d.km)).roundToInt()
         val skipped = c.scenes.filter { it.km > km }.map { it.name } - d.scenes.filter { it.km > km }.map { it.name }.toSet()
         val hint = if (skipped.isEmpty()) "말하거나 눌러서 골라 줘" else "길을 바꾸면 못 보는 곳: " + skipped.joinToString(", ")
-        (source as? SimulatedDrive)?.hold = true
         ask(Ask("막혀서 ${late}분 늦어지는 중", "그대로 가기", "길 바꾸기 (${save}분 단축)", hint), Lines.lateAsk(late, save))
     }
 
@@ -406,6 +425,7 @@ class DriveService : Service() {
         // 내비 안내 음성은 요청 뒤 늦으면 6초쯤 지나서 나온다
         const val NAVI_VOICE_MS = 7000L
         const val ASK_WAIT_MS = 16000L
+        val QUIET = setOf(Part.IDLE, Part.CRUISE_A, Part.CRUISE_B)
         const val LATE_ASK_SEC = 240.0
         const val HERE_SHIFT = 0.0015
         const val ACTION_STOP = "roadie.STOP"

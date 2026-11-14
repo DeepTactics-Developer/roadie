@@ -15,6 +15,7 @@ class RoadieApp : Application() {
     override fun onCreate() {
         super.onCreate()
         records = Records(this)
+        Docent.load(this)
         speaker = Speaker(this)
         listener = Listener(this).apply {
             onText = { text, final -> Session.onText(text, final) }

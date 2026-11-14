@@ -22,7 +22,7 @@ class SimulatedDrive(var course: Course, private val warp: Double, private val p
     override var km = 0.0
         private set
 
-    // 막힐 때 질문하는 동안은 1배로 달린다. 대답하기 전에 정체가 끝나 버리지 않게
+    // 질문이나 이야기 중에는 1배로 달린다
     var hold = false
 
     // 배속 중엔 평균 속도로 도착 시간을 잴 수 없어서, 같은 모델을 미리 돌려 본다

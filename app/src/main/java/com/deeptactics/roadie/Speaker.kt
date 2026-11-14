@@ -22,6 +22,9 @@ class Speaker(context: Context) {
     // 말하는 중인지. 화면과 서비스가 읽어 간다
     @Volatile var talking = false
         private set
+
+    // 말하는 중이거나 말할 게 밀려 있다
+    val busy get() = talking || pending != null
     private val ui = Handler(Looper.getMainLooper())
     private var pleos: PleosTts? = null
     private var basic: TextToSpeech? = null
