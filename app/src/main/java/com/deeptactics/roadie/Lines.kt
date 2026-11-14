@@ -38,6 +38,25 @@ object Lines {
     fun forkPicked(c: Choice) = "좋아, ${c.label} 쪽으로 간다."
     fun forkDefault(c: Choice) = "대답 없으니까 ${c.label} 쪽으로 갈게."
 
+    // 막혀서 늦어질 때
+    fun lateAsk(late: Int, save: Int) = "길이 꽤 막히네. 이대로면 ${late}분쯤 늦어. " +
+        (if (save >= late) "길을 바꾸면 원래 시간에 맞출 수 있어." else "길을 바꾸면 ${save}분 줄일 수 있어.") + " 그대로 갈까, 바꿀까?"
+    fun lateOnly(late: Int) = "길이 꽤 막히네. ${late}분쯤 늦어질 것 같아. 음악은 기다려 줄게."
+    const val LATE_KEPT = "좋아, 원래 길로 천천히 가자."
+    const val LATE_CHANGED = "좋아, 길 바꿀게. 시간 맞춰 보자."
+    const val LATE_DEFAULT = "대답 없으니까 원래 길로 갈게."
+    const val DETOURED = "막혔는데 길 바꿔서 거의 제시간에 왔다."
+
+    // 막힐 때 대답. 길을 바꾸면 true, 그대로면 false
+    fun pickLate(text: String): Boolean? {
+        val t = text.replace(" ", "")
+        return when {
+            Regex("바꿔|바꾸|바꿀|빨리|지름길|맞춰|맞추|오른|두번|2번").containsMatchIn(t) -> true
+            Regex("그대로|원래|계속|괜찮|천천|왼|첫|1번").containsMatchIn(t) -> false
+            else -> null
+        }
+    }
+
     // 드롭이 끝나고 여운이 지난 뒤 한마디
     fun afterScene(kind: SceneKind) = when (kind) {
         SceneKind.TUNNEL_EXIT -> "터널 나오는 순간, 이거지."

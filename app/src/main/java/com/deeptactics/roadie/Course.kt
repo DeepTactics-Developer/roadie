@@ -124,6 +124,61 @@ class Course(val legs: List<Leg>, val segments: List<Segment> = legs.map { Segme
         return Course(legs, segs).also { it.fork = fork }
     }
 
+    // a~b km 구간을 지도 속도(정체 모름)로 달리는 데 드는 분
+    fun planMinutes(a: Double, b: Double) = legs.sumOf { maxOf(0.0, minOf(b, it.toKm) - maxOf(a, it.fromKm)) / it.edge.kmh * 60 }
+
+    // 시연용 긴 정체. 서서히 막혀서 몇 km를 12km/h로 기어간다.
+    // 갈림길 뒤, 앞뒤로 장면이 없는 곳에 둔다. 예정보다 CONGEST_LATE_MIN분쯤 늦어지게 길이를 잡는다
+    fun withCongestion(afterKm: Double = 0.0): Course {
+        val first = maxOf(afterKm + 0.5, (fork?.km ?: 0.0) + 1.0, legs.first().toKm + 0.3)
+        val last = legs.last().fromKm - 0.3
+        var from = first
+        while (from < last) {
+            val v = speedAt(from, plan = true)
+            val core = (CONGEST_LATE_MIN / (60 / CONGEST_KMH - 60 / v)).coerceIn(1.2, 3.5)
+            val to = from + RAMP_IN_KM + core + RAMP_OUT_KM
+            if (to > last) break
+            if (scenes.none { it.km in from - 0.6..to + 1.0 }) {
+                return splice(from, listOf(
+                    Segment(from + RAMP_IN_KM, minOf(25.0, v), jam = true),
+                    Segment(from + RAMP_IN_KM + core, CONGEST_KMH, jam = true),
+                    Segment(to, minOf(25.0, v), jam = true),
+                )).also { it.fork = fork }
+            }
+            from += 0.1
+        }
+        return this
+    }
+
+    // from부터 pieces로 속도 구간을 갈아 끼운다. 나머지 구간은 그대로
+    private fun splice(from: Double, pieces: List<Segment>): Course {
+        val to = pieces.last().untilKm
+        val out = mutableListOf<Segment>()
+        var start = 0.0
+        var added = false
+        for (s in segments) {
+            if (start < from) out += Segment(minOf(s.untilKm, from), s.kmh, s.jam)
+            if (!added && s.untilKm > from) {
+                out += pieces
+                added = true
+            }
+            if (s.untilKm > to) out += s
+            start = s.untilKm
+        }
+        return Course(legs, out)
+    }
+
+    // 막혀서 길을 바꿀 때. 앞의 keep개 조각(지금 달리는 조각까지)은 그대로 두고 뒤를 tail로 바꾼다
+    fun detour(keep: Int, tail: List<Pair<Edge, Boolean>>): Course {
+        val head = legs.take(keep)
+        val end = head.last().toKm
+        var at = end
+        val t = tail.map { (e, r) -> Leg(e, r, at).also { at = it.toKm } }
+        val cut = segments.first { it.untilKm >= end - 1e-9 }
+        val segs = segments.takeWhile { it.untilKm < end - 1e-9 } + Segment(end, cut.kmh, cut.jam) + t.map { Segment(it.toKm, it.edge.kmh) }
+        return Course(head + t, segs)
+    }
+
     // 갈림길에서 고른 쪽으로 뒤를 바꾼다
     fun branch(choice: Choice): Course {
         val f = fork ?: return this
@@ -135,6 +190,10 @@ class Course(val legs: List<Leg>, val segments: List<Segment> = legs.map { Segme
 
     companion object {
         const val JAM_KM = 0.03
+        const val CONGEST_KMH = 12.0
+        const val CONGEST_LATE_MIN = 10.0
+        const val RAMP_IN_KM = 0.5
+        const val RAMP_OUT_KM = 0.4
         const val MAX_SCENES = 3
         const val MAX_TUNNEL_BUILD_KM = 1.2
         val PRIORITY = listOf(SceneKind.TUNNEL_EXIT, SceneKind.PASS, SceneKind.SEA, SceneKind.RIVER, SceneKind.LAKE, SceneKind.VIEW, SceneKind.BRIDGE)

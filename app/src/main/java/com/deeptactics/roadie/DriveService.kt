@@ -18,6 +18,7 @@ import android.os.IBinder
 import android.os.Looper
 import android.os.SystemClock
 import android.util.Log
+import kotlin.math.roundToInt
 
 // 주행의 본체. 화면이 내비에 가려지거나 내려가도 음악, 음성, 갈림길 질문이 이어지게 서비스로 돌린다.
 // 화면(MainActivity)은 Session에 쓰인 상태를 보여 주기만 한다
@@ -37,8 +38,11 @@ class DriveService : Service() {
     private var startedAt = 0L
     private var lastTick = 0L
     private var forkAsked = false
-    private var forkListenAfterTalk = false
-    private var forkDeadline = 0L
+    private var listenAfterTalk = false
+    private var askDeadline = 0L
+    private var lateAsked = false
+    private var detoured = false
+    private var detour: Course? = null // 막힐 때 길을 바꾸면 갈 코스. 있으면 지금 질문은 정체 질문
     private var wasTalking = false
     private var jamSaid = false
     private var slowSince = 0L
@@ -58,8 +62,8 @@ class DriveService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_STOP -> if (source != null) finish() else stopSelf()
-            ACTION_LEFT -> Session.course?.fork?.let { resolveFork(it.left) }
-            ACTION_RIGHT -> Session.course?.fork?.let { resolveFork(it.right) }
+            ACTION_LEFT -> answer(true)
+            ACTION_RIGHT -> answer(false)
             else -> if (source == null) begin()
         }
         return START_NOT_STICKY
@@ -71,7 +75,7 @@ class DriveService : Service() {
         startForeground(ONGOING_ID, ongoing(plan, "출발 준비"), ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
 
         simulate = Session.simulate
-        val c = if (simulate) plan.withJam() else plan
+        val c = if (simulate) plan.withJam().withCongestion() else plan
         Session.course = c
         source = if (simulate) SimulatedDrive(c, Session.warp) else CarDrive(this)
         val a = Arranger(::onApproach, ::onDrop).apply { scenes = c.scenes }
@@ -80,7 +84,10 @@ class DriveService : Service() {
         passed.clear()
         stats = DriveStats()
         forkAsked = false
-        forkListenAfterTalk = false
+        listenAfterTalk = false
+        lateAsked = false
+        detoured = false
+        detour = null
         jamSaid = false
         slowSince = 0L
         lastDrop = null
@@ -93,7 +100,7 @@ class DriveService : Service() {
             result = null
             km = 0.0
             speed = 0f
-            forkOpen = false
+            ask = null
             heardText = null
         }
         say(Lines.START)
@@ -134,12 +141,12 @@ class DriveService : Service() {
         val now = m.now()
         a.update(now, src.km, src.speedKmh, src::etaSec)
 
-        // 말하는 동안 음악을 낮추고, 갈림길 질문이 끝나면 대답을 듣기 시작한다
+        // 말하는 동안 음악을 낮추고, 질문이 끝나면 대답을 듣기 시작한다
         val talking = speaker.talking
         m.duck(talking)
-        if (wasTalking && !talking && forkListenAfterTalk) {
-            forkListenAfterTalk = false
-            if (Session.forkOpen) listener.listen()
+        if (wasTalking && !talking && listenAfterTalk) {
+            listenAfterTalk = false
+            if (Session.ask != null) listener.listen()
         }
         wasTalking = talking
 
@@ -154,8 +161,8 @@ class DriveService : Service() {
             beat = (now % (Arranger.BAR / 4)).toFloat() / (Arranger.BAR / 4)
         }
 
-        // 정체: 몇 초 이상 기어가면 한마디
-        if (src.speedKmh < 12 && src.km > 0.3 && c.km - src.km > 0.5) {
+        // 갑자기 멈추듯 막히면 한마디(긴 정체는 아래에서 따로 묻는다)
+        if (src.speedKmh < 8 && src.km > 0.3 && c.km - src.km > 0.5) {
             if (slowSince == 0L) slowSince = t
             if (!jamSaid && t - slowSince > 1500) {
                 jamSaid = true
@@ -172,7 +179,15 @@ class DriveService : Service() {
 
         val f = c.fork
         if (f != null && !forkAsked && src.km >= f.km - c.forkAskKm()) askFork(f)
-        if (Session.forkOpen && f != null && (t > forkDeadline || src.km >= f.km - 0.05)) resolveFork(null)
+        if (Session.ask != null && detour == null && f != null && (t > askDeadline || src.km >= f.km - 0.05)) resolveFork(null)
+
+        // 막혀서 예정보다 많이 늦어지면, 그대로 갈지 길을 바꿔 시간을 맞출지 묻는다.
+        // 갈림길 질문이 끝난 뒤, 다음 장면이 1km 넘게 남았을 때만
+        if (!lateAsked && Session.ask == null && f == null && src.km > 0.3 && src.speedKmh < 20 && (target?.let { it.km - src.km > 1.0 } != false)) {
+            val late = stats.total - c.planMinutes(0.0, src.km) * 60
+            if (late > maxOf(LATE_ASK_SEC, c.minutes * 60 * 0.12)) askLate(c, src.km, late)
+        }
+        if (Session.ask != null && detour != null && t > askDeadline) resolveLate(null)
 
         if (t - notifiedAt > 4000) {
             notifiedAt = t
@@ -182,30 +197,77 @@ class DriveService : Service() {
         if (src.km >= c.km && src.speedKmh == 0f) finish()
     }
 
+    // 묻고, 말이 끝나면 대답을 듣는다. 화면이 내비에 가려져 있어도 알림으로 버튼을 띄운다
+    private fun ask(q: Ask, line: String) {
+        Session.ask = q
+        Session.heardText = null
+        listenAfterTalk = true
+        say(line)
+        askDeadline = SystemClock.elapsedRealtime() + ASK_WAIT_MS
+        nm.notify(ASK_ID, askNotice(q))
+    }
+
+    private fun closeAsk() {
+        Session.ask = null
+        listenAfterTalk = false
+        listener.stop()
+        nm.cancel(ASK_ID)
+        (source as? SimulatedDrive)?.hold = false
+    }
+
+    // 화면이나 알림 버튼. 왼쪽 오른쪽
+    fun answer(left: Boolean) {
+        if (detour != null) resolveLate(!left) else Session.course?.fork?.let { resolveFork(if (left) it.left else it.right) }
+    }
+
     private fun askFork(f: Fork) {
         Log.d(MainActivity.TAG, "갈림길 질문 ${f.node.name}")
         forkAsked = true
-        Session.forkOpen = true
-        Session.heardText = null
-        forkListenAfterTalk = true
-        say(Lines.forkAsk(f))
-        forkDeadline = SystemClock.elapsedRealtime() + FORK_WAIT_MS
-        // 화면이 내비에 가려져 있어도 알림으로 버튼을 띄운다
-        nm.notify(FORK_ID, forkNotice(f))
+        ask(Ask("곧 ${f.node.name} 갈림길", f.left.label, f.right.label, "말하거나 눌러서 골라 줘", arrows = true), Lines.forkAsk(f))
+    }
+
+    private fun askLate(c: Course, km: Double, lateSec: Double) {
+        lateAsked = true
+        val late = (lateSec / 60).roundToInt()
+        val rest = c.planMinutes(km, c.km)
+        val d = Composer.shortcut(RoadieApp.graph, c, km, rest - lateSec / 60)
+        Log.d(MainActivity.TAG, "정체 ${late}분 늦음, 남은 %.0f분, 바꾸면 %s".format(rest, d?.let { "%.0f분".format(it.planMinutes(km, it.km)) }))
+        if (d == null) return say(Lines.lateOnly(late))
+        detour = d
+        val save = (rest - d.planMinutes(km, d.km)).roundToInt()
+        val skipped = c.scenes.filter { it.km > km }.map { it.name } - d.scenes.filter { it.km > km }.map { it.name }.toSet()
+        val hint = if (skipped.isEmpty()) "말하거나 눌러서 골라 줘" else "길을 바꾸면 못 보는 곳: " + skipped.joinToString(", ")
+        (source as? SimulatedDrive)?.hold = true
+        ask(Ask("막혀서 ${late}분 늦어지는 중", "그대로 가기", "길 바꾸기 (${save}분 단축)", hint), Lines.lateAsk(late, save))
     }
 
     fun onHeard(text: String, final: Boolean) {
         Session.heardText = text
-        val f = Session.course?.fork ?: return
-        if (final) Lines.pick(text, f)?.let { resolveFork(it) }
+        if (!final) return
+        if (detour != null) Lines.pickLate(text)?.let { resolveLate(it) }
+        else Session.course?.fork?.let { f -> Lines.pick(text, f)?.let { resolveFork(it) } }
+    }
+
+    // change: 길을 바꾸면 true, 그대로면 false, 대답 없으면 null
+    private fun resolveLate(change: Boolean?) {
+        val d = detour ?: return
+        if (Session.ask == null) return
+        closeAsk()
+        detour = null
+        val src = source ?: return
+        Log.d(MainActivity.TAG, "정체 선택 ${if (change == true) "길 바꾸기" else "그대로"}${if (change == null) " (기본)" else ""}")
+        if (change != true) return say(if (change == null) Lines.LATE_DEFAULT else Lines.LATE_KEPT)
+        say(Lines.LATE_CHANGED)
+        detoured = true
+        Session.course = d
+        (src as? SimulatedDrive)?.course = d
+        arranger?.replace(d.scenes, src.km)
+        routeTo(d)
     }
 
     fun resolveFork(choice: Choice?) {
-        if (!Session.forkOpen) return
-        Session.forkOpen = false
-        forkListenAfterTalk = false
-        listener.stop()
-        nm.cancel(FORK_ID)
+        if (Session.ask == null) return
+        closeAsk()
         val c = Session.course ?: return
         val f = c.fork ?: return
         val src = source ?: return
@@ -217,6 +279,7 @@ class DriveService : Service() {
         var next = c.branch(ch)
         // 정체를 아직 안 겪었으면 새 길에도 넣는다
         if (simulate && c.segments.none { it.jam && it.untilKm < src.km }) next = next.withJam(src.km)
+        if (simulate && !lateAsked) next = next.withCongestion(src.km)
         Session.course = next
         (src as? SimulatedDrive)?.course = next
         arranger?.replace(next.scenes, src.km)
@@ -249,8 +312,9 @@ class DriveService : Service() {
         mixer?.release()
         mixer = null
         arranger = null
-        Session.forkOpen = false
-        nm.cancel(FORK_ID)
+        Session.ask = null
+        detour = null
+        nm.cancel(ASK_ID)
         RoadieApp.naviCall { cancelRoute() }
 
         val c = Session.course
@@ -258,7 +322,7 @@ class DriveService : Service() {
             val scenes = passed.map { it.first }
             val before = records.km
             val crossed = ((before + km) / 100).toInt().takeIf { it > (before / 100).toInt() }?.let { it * 100 }
-            val line = Lines.arrive(scenes, records.count == 0, crossed, records.visited(c.id))
+            val line = (if (detoured) Lines.DETOURED + " " else "") + Lines.arrive(scenes, records.count == 0, crossed, records.visited(c.id))
             val note = Taste.note(c, km, stats)
             val drivenMin = (stats.total / 60).toInt()
             records.add(c.id, Drive(Records.stamp(), c.name, km, drivenMin, scenes.map { it.name }, note))
@@ -311,17 +375,18 @@ class DriveService : Service() {
             .build()
     }
 
-    private fun forkNotice(f: Fork): Notification {
+    private fun askNotice(q: Ask): Notification {
         channel(CH_FORK, "갈림길", NotificationManager.IMPORTANCE_HIGH)
         return Notification.Builder(this, CH_FORK)
             .setSmallIcon(R.drawable.ic_roadie)
-            .setContentTitle("곧 ${f.node.name} 갈림길")
-            .setContentText("말하거나 눌러서 골라 줘")
+            .setContentTitle(q.title)
+            .setContentText(q.hint)
             .setCategory(Notification.CATEGORY_NAVIGATION)
             .setContentIntent(open())
             .setAutoCancel(true)
-            .addAction(action(2, "← ${f.left.label}", ACTION_LEFT))
-            .addAction(action(3, "${f.right.label} →", ACTION_RIGHT))
+            // 차량 알림은 버튼을 오른쪽부터 놓아서 거꾸로 넣는다
+            .addAction(action(3, q.right, ACTION_RIGHT))
+            .addAction(action(2, q.left, ACTION_LEFT))
             .build()
     }
 
@@ -340,7 +405,8 @@ class DriveService : Service() {
         const val TICK_MS = 50L
         // 내비 안내 음성은 요청 뒤 늦으면 6초쯤 지나서 나온다
         const val NAVI_VOICE_MS = 7000L
-        const val FORK_WAIT_MS = 16000L
+        const val ASK_WAIT_MS = 16000L
+        const val LATE_ASK_SEC = 240.0
         const val HERE_SHIFT = 0.0015
         const val ACTION_STOP = "roadie.STOP"
         const val ACTION_LEFT = "roadie.LEFT"
@@ -349,7 +415,7 @@ class DriveService : Service() {
         const val CH_FORK = "fork"
         const val CH_ARRIVE = "arrive"
         const val ONGOING_ID = 1
-        const val FORK_ID = 2
+        const val ASK_ID = 2
         const val ARRIVE_ID = 3
 
         var instance: DriveService? = null

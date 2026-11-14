@@ -34,7 +34,7 @@ class MainActivity : Activity() {
 
     private var screen = ""
     private var dropSeen = 0
-    private var forkShown = false
+    private var shownAsk: Ask? = null
     private val handler = Handler(Looper.getMainLooper())
     private val ui = object : Runnable {
         override fun run() {
@@ -262,7 +262,7 @@ class MainActivity : Activity() {
     private fun showDrive() {
         val c = Session.course ?: Session.plan ?: course ?: return
         setScreen("drive", R.layout.drive)
-        forkShown = false
+        shownAsk = null
         dropSeen = Session.dropSeq
         face()?.driving = true
         findViewById<RouteView>(R.id.route).apply {
@@ -271,8 +271,8 @@ class MainActivity : Activity() {
         }
         findViewById<TextView>(R.id.course).text = c.name
         findViewById<View>(R.id.stop).setOnClickListener { DriveService.instance?.finish() ?: run { Session.phase = Session.Phase.HOME } }
-        findViewById<View>(R.id.left).setOnClickListener { Session.course?.fork?.let { DriveService.instance?.resolveFork(it.left) } }
-        findViewById<View>(R.id.right).setOnClickListener { Session.course?.fork?.let { DriveService.instance?.resolveFork(it.right) } }
+        findViewById<View>(R.id.left).setOnClickListener { DriveService.instance?.answer(true) }
+        findViewById<View>(R.id.right).setOnClickListener { DriveService.instance?.answer(false) }
     }
 
     private fun renderDrive() {
@@ -297,30 +297,30 @@ class MainActivity : Activity() {
         }
 
         face()?.mood = when {
-            s.forkOpen -> if (s.listening) CarFace.Mood.LISTENING else CarFace.Mood.CURIOUS
+            s.ask != null -> if (s.listening) CarFace.Mood.LISTENING else CarFace.Mood.CURIOUS
             s.part == Part.DROP -> CarFace.Mood.EXCITED
             s.part == Part.PRE || s.part.building -> CarFace.Mood.CURIOUS
             s.speed < 5 -> CarFace.Mood.SLEEPY
             else -> CarFace.Mood.HAPPY
         }
 
-        // 갈림길 선택 화면
-        if (s.forkOpen) {
-            val f = c.fork
-            if (!forkShown && f != null) {
-                forkShown = true
-                findViewById<TextView>(R.id.left).text = "←  ${f.left.label}"
-                findViewById<TextView>(R.id.right).text = "${f.right.label}  →"
-                findViewById<TextView>(R.id.forkTitle).text = "곧 ${f.node.name} 갈림길"
+        // 갈림길, 정체 선택 화면
+        val q = s.ask
+        if (q != null) {
+            if (shownAsk !== q) {
+                shownAsk = q
+                findViewById<TextView>(R.id.left).text = if (q.arrows) "←  ${q.left}" else q.left
+                findViewById<TextView>(R.id.right).text = if (q.arrows) "${q.right}  →" else q.right
+                findViewById<TextView>(R.id.forkTitle).text = q.title
                 findViewById<View>(R.id.forkPanel).visibility = View.VISIBLE
             }
             findViewById<TextView>(R.id.forkHint).text = when {
                 s.listening -> "듣고 있어. 말해 줘"
                 s.heardText != null -> "“${s.heardText}”"
-                else -> "말하거나 눌러서 골라 줘"
+                else -> q.hint
             }
-        } else if (forkShown) {
-            forkShown = false
+        } else if (shownAsk != null) {
+            shownAsk = null
             findViewById<View>(R.id.forkPanel).visibility = View.GONE
         }
 

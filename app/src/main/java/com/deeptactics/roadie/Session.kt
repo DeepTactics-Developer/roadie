@@ -1,5 +1,8 @@
 package com.deeptactics.roadie
 
+// 주행 중 묻는 것(갈림길, 막힐 때). 화면과 알림이 같은 내용을 띄운다. arrows면 화면 버튼에 방향 화살표를 붙인다
+class Ask(val title: String, val left: String, val right: String, val hint: String, val arrows: Boolean = false)
+
 // 주행이 끝나고 도착 카드에 보여 줄 것
 class Result(
     val course: Course,
@@ -33,7 +36,7 @@ object Session {
     var levels = FloatArray(5)
     var beat = 0f
     var bubble = ""
-    var forkOpen = false
+    var ask: Ask? = null
     var listening = false
     var heardText: String? = null
     var dropName: String? = null
@@ -46,7 +49,7 @@ object Session {
     var homeFail: (() -> Unit)? = null
 
     fun onText(text: String, final: Boolean) {
-        if (forkOpen) DriveService.instance?.onHeard(text, final) else homeText?.invoke(text, final)
+        if (ask != null) DriveService.instance?.onHeard(text, final) else homeText?.invoke(text, final)
     }
 
     fun onListening(on: Boolean) {
@@ -55,6 +58,6 @@ object Session {
     }
 
     fun onListenFail() {
-        if (!forkOpen) homeFail?.invoke()
+        if (ask == null) homeFail?.invoke()
     }
 }

@@ -59,6 +59,7 @@ object Composer {
     private const val MAX_CANDIDATES = 3000
     private const val CONNECTOR_KMH = 35.0
     private const val DETOUR = 1.3 // 직선거리 대비 도로가 돌아가는 정도
+    private const val SAVE_MIN = 3.0
 
     // 한 번 만든 후보들. 갈림길 대안도 여기서 찾는다
     class Pool(val here: Node, val courses: List<Course>)
@@ -68,9 +69,7 @@ object Composer {
         val minMin = w.minutes * 0.5
         val maxMin = w.minutes * 1.6
         val conns = HashMap<String, Edge>()
-        fun conn(a: Node, b: Node) = conns.getOrPut(a.id + ">" + b.id) {
-            Edge(a, b, "연결 구간", max(0.05, a.km(b) * DETOUR), CONNECTOR_KMH, 0, 0, 0, emptySet(), connector = true)
-        }
+        fun conn(a: Node, b: Node) = conns.getOrPut(a.id + ">" + b.id) { connector(a, b) }
 
         val out = ArrayList<Course>()
         val near = g.near(here, radius)
@@ -187,6 +186,57 @@ object Composer {
         }
         return null
     }
+
+    // 막혀서 늦어질 때 예정 시간에 맞춰 돌아오는 길. 지금 달리는 조각 끝에서 갈라진다.
+    // 남은 예상 시간이 budgetMin 안에 드는 것 중 장면이 많이 남는 것(같으면 오래 달리는 것), 그런 게 없으면 가장 빠른 것.
+    // 원래 길보다 SAVE_MIN분 넘게 줄지 않으면 null
+    fun shortcut(g: Graph, c: Course, km: Double, budgetMin: Double): Course? {
+        val i = c.legs.indexOfFirst { km < it.toKm }
+        if (i < 0 || i >= c.legs.lastIndex) return null
+        val from = c.legs[i].to
+        val here = c.start
+        if (from.id !in g.nodes) return null
+        val passed = c.legs.take(i + 1).map { it.from.id }.toSet()
+        val exitMaxKm = (g.near(here, Double.MAX_VALUE).firstOrNull()?.second ?: return null) + EXIT_SLACK_KM
+
+        // 지나온 곳은 다시 안 지나게 하고 시간 기준 최단 경로
+        val dist = hashMapOf(from.id to 0.0)
+        val prev = HashMap<String, Pair<Edge, Boolean>>()
+        val done = HashSet<String>()
+        while (true) {
+            val u = dist.entries.filter { it.key !in done }.minByOrNull { it.value }?.key ?: break
+            done += u
+            for ((e, rev) in g.adj[u].orEmpty()) {
+                val v = if (rev) e.a else e.b
+                if (v.id in passed) continue
+                val d = dist.getValue(u) + e.km / e.kmh * 60
+                if (d < (dist[v.id] ?: Double.MAX_VALUE)) {
+                    dist[v.id] = d
+                    prev[v.id] = e to rev
+                }
+            }
+        }
+
+        val rest = c.planMinutes(km, c.legs[i].toKm)
+        val options = done.map { g.nodes.getValue(it) }.filter { it.km(here) <= exitMaxKm }.map { exit ->
+            val path = ArrayList<Pair<Edge, Boolean>>()
+            var at = exit.id
+            while (at != from.id) {
+                val step = prev.getValue(at)
+                path.add(0, step)
+                at = if (step.second) step.first.b.id else step.first.a.id
+            }
+            val out = connector(exit, here)
+            c.detour(i + 1, path + (out to false)) to rest + dist.getValue(exit.id) + out.km / out.kmh * 60
+        }
+        val pick = options.filter { it.second <= budgetMin }.maxWithOrNull(compareBy({ o -> o.first.scenes.count { it.km > km } }, { it.second }))
+            ?: options.minByOrNull { it.second } ?: return null
+        if (c.planMinutes(km, c.km) - pick.second < SAVE_MIN) return null
+        return pick.first
+    }
+
+    private fun connector(a: Node, b: Node) =
+        Edge(a, b, "연결 구간", max(0.05, a.km(b) * DETOUR), CONNECTOR_KMH, 0, 0, 0, emptySet(), connector = true)
 
     // 갈라진 뒤 길의 성격. 시내가 아닌 첫 태그
     private fun label(tail: List<Leg>): String {

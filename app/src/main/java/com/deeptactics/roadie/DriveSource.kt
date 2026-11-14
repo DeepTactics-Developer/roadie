@@ -22,6 +22,9 @@ class SimulatedDrive(var course: Course, private val warp: Double, private val p
     override var km = 0.0
         private set
 
+    // 막힐 때 질문하는 동안은 1배로 달린다. 대답하기 전에 정체가 끝나 버리지 않게
+    var hold = false
+
     // 배속 중엔 평균 속도로 도착 시간을 잴 수 없어서, 같은 모델을 미리 돌려 본다
     override fun etaSec(targetKm: Double): Double {
         val ghost = SimulatedDrive(course, warp, plan = true)
@@ -66,6 +69,7 @@ class SimulatedDrive(var course: Course, private val warp: Double, private val p
     // 다음 장면(없으면 도착지)까지 남은 거리에 따라 배속을 서서히 줄인다.
     // 급하게 바꾸면 음악 쪽 도착 예상 시간이 튄다
     fun timeScale(): Double {
+        if (hold) return 1.0
         val next = course.slowPoints.filter { it.first > km }.minByOrNull { it.first }
         val rem = (next?.first ?: course.km) - km
         val zone = next?.second ?: 0.3
