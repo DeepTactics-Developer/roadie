@@ -7,10 +7,11 @@ class Leg(val edge: Edge, val reversed: Boolean, val fromKm: Double) {
     val toKm get() = fromKm + edge.km
     val climb get() = if (reversed) -edge.climb else edge.climb
 
-    fun scenes() = edge.features.filter { !it.oneWay || !reversed }.map { f ->
+    fun scenes() = edge.features.filter { (!it.oneWay || !reversed) && (!it.reverseOnly || reversed) }.map { f ->
         // 반대로 달리면 위치가 뒤집힌다. 터널은 반대편 입구가 출구가 된다
         val at = if (!reversed) f.at else edge.km - (f.at - f.len)
-        val tunnelFrom = if (f.len > 0) fromKm + at - f.len else null
+        // 긴 터널은 빌드업을 끝 쪽 일부에서만 쌓는다
+        val tunnelFrom = if (f.len > 0) fromKm + at - minOf(f.len, Course.MAX_TUNNEL_BUILD_KM) else null
         Scene(fromKm + at, f.name, f.kind, f.line, tunnelFrom)
     }
 
@@ -122,6 +123,7 @@ class Course(val legs: List<Leg>, val segments: List<Segment> = legs.map { Segme
     companion object {
         const val JAM_KM = 0.03
         const val MAX_SCENES = 3
+        const val MAX_TUNNEL_BUILD_KM = 1.2
         val PRIORITY = listOf(SceneKind.TUNNEL_EXIT, SceneKind.PASS, SceneKind.SEA, SceneKind.LAKE, SceneKind.VIEW, SceneKind.BRIDGE)
         const val JAM_LEAD_SEC = 12.0
         const val FORK_ASK_SEC = 25.0

@@ -1,0 +1,136 @@
+package com.deeptactics.roadie
+
+// tools/build_roads.py가 만든 파일이다. 손으로 고치지 말고 스크립트를 다시 돌린다.
+// 경로 OSRM, 도로 정보 OpenStreetMap(© OpenStreetMap contributors, ODbL), 고도 SRTM 30m
+object RoadData {
+    val nodes = listOf(
+        Node("home", "강릉역", 37.7637, 128.8996),
+        Node("ojuk", "오죽헌", 37.7792, 128.8786),
+        Node("lake", "경포호", 37.7955, 128.902),
+        Node("gbeach", "경포해변", 37.8055, 128.9078),
+        Node("sacheon", "사천진해변", 37.841, 128.877),
+        Node("yeongok", "연곡", 37.8606, 128.8402),
+        Node("anmok", "안목해변", 37.7722, 128.9476),
+        Node("namhang", "남항진", 37.7699, 128.9512),
+        Node("jdj", "정동진", 37.6912, 129.0341),
+        Node("simgok", "심곡항", 37.6516, 129.045),
+        Node("seongsan", "대관령 옛길 입구", 37.7158, 128.8296),
+        Node("pass", "대관령 마루", 37.6876, 128.7525),
+    )
+
+    val edges = listOf(
+        Edge("home", "ojuk", "율곡로", 3.108, 35.0, 9, 3, -2, setOf(Tag.CITY),
+        ),
+        Edge("home", "lake", "수리골길", 4.316, 35.0, 2, 5, -12, setOf(Tag.LAKE),
+            listOf(
+                Feature(3.750, SceneKind.LAKE, "경포호 호숫가", "호수 옆으로 바짝 붙는다.", oneWay = true),
+                Feature(4.300, SceneKind.LAKE, "경포호 호숫가", "호수 옆으로 바짝 붙는다.", reverseOnly = true),
+            ),
+        ),
+        Edge("ojuk", "lake", "경포로", 3.089, 35.0, 2, 3, -8, setOf(Tag.LAKE),
+            listOf(
+                Feature(2.525, SceneKind.LAKE, "경포호 호숫가", "호수 옆으로 바짝 붙는다.", oneWay = true),
+                Feature(3.075, SceneKind.LAKE, "경포호 호숫가", "호수 옆으로 바짝 붙는다.", reverseOnly = true),
+            ),
+        ),
+        Edge("lake", "gbeach", "경포로", 1.355, 40.0, 0, 1, 4, setOf(Tag.LAKE),
+            listOf(
+                Feature(0.000, SceneKind.LAKE, "경포호 호숫가", "호수 옆으로 바짝 붙는다.", oneWay = true),
+                Feature(1.350, SceneKind.LAKE, "경포호 호숫가", "호수 옆으로 바짝 붙는다.", reverseOnly = true),
+            ),
+        ),
+        Edge("gbeach", "sacheon", "해안로", 5.812, 35.0, 0, 3, 0, setOf(Tag.SEA),
+            listOf(
+                Feature(0.000, SceneKind.SEA, "창해로 해안도로", "바다 바로 옆으로 붙는다.", oneWay = true),
+                Feature(4.250, SceneKind.SEA, "창해로 해안도로", "바다 바로 옆으로 붙는다.", reverseOnly = true),
+            ),
+        ),
+        Edge("sacheon", "yeongok", "해안로", 7.884, 40.0, 0, 7, 4, setOf(Tag.SEA),
+            listOf(
+                Feature(1.025, SceneKind.SEA, "해안로 해안도로", "바다 바로 옆으로 붙는다.", oneWay = true),
+                Feature(3.425, SceneKind.SEA, "해안로 해안도로", "바다 바로 옆으로 붙는다.", reverseOnly = true),
+                Feature(4.475, SceneKind.BRIDGE, "동해대로 다리 위", "다리 건널 때 양쪽 다 봐.", oneWay = true),
+                Feature(4.800, SceneKind.BRIDGE, "동해대로 다리 위", "다리 건널 때 양쪽 다 봐.", reverseOnly = true),
+            ),
+        ),
+        Edge("yeongok", "ojuk", "율곡로", 11.941, 65.0, 8, 3, -2, setOf(Tag.CITY),
+            listOf(
+                Feature(1.475, SceneKind.BRIDGE, "동해대로 다리 위", "다리 건널 때 양쪽 다 봐.", oneWay = true),
+                Feature(1.800, SceneKind.BRIDGE, "동해대로 다리 위", "다리 건널 때 양쪽 다 봐.", reverseOnly = true),
+            ),
+        ),
+        Edge("gbeach", "anmok", "창해로", 7.177, 35.0, 1, 7, 0, setOf(Tag.SEA, Tag.LAKE),
+            listOf(
+                Feature(0.000, SceneKind.SEA, "창해로 해안도로", "바다 바로 옆으로 붙는다.", oneWay = true),
+                Feature(0.850, SceneKind.SEA, "창해로 해안도로", "바다 바로 옆으로 붙는다.", reverseOnly = true),
+                Feature(1.600, SceneKind.LAKE, "경포호 호숫가", "호수 옆으로 바짝 붙는다.", oneWay = true),
+                Feature(1.875, SceneKind.SEA, "경포로 해안도로", "바다 바로 옆으로 붙는다.", oneWay = true),
+                Feature(2.650, SceneKind.LAKE, "경포호 호숫가", "호수 옆으로 바짝 붙는다.", reverseOnly = true),
+                Feature(7.175, SceneKind.SEA, "경포로 해안도로", "바다 바로 옆으로 붙는다.", reverseOnly = true),
+            ),
+        ),
+        Edge("home", "anmok", "경강로", 5.567, 35.0, 7, 4, -8, setOf(Tag.CITY),
+            listOf(
+                Feature(4.875, SceneKind.SEA, "경강로 해안도로", "바다 바로 옆으로 붙는다.", oneWay = true),
+                Feature(5.550, SceneKind.SEA, "경강로 해안도로", "바다 바로 옆으로 붙는다.", reverseOnly = true),
+            ),
+        ),
+        Edge("anmok", "namhang", "경강로", 0.794, 25.0, 0, 2, 1, setOf(Tag.SEA, Tag.MOUNTAIN),
+            listOf(
+                Feature(0.000, SceneKind.SEA, "경강로 해안도로", "바다 바로 옆으로 붙는다.", oneWay = true),
+                Feature(0.775, SceneKind.SEA, "경강로 해안도로", "바다 바로 옆으로 붙는다.", reverseOnly = true),
+            ),
+        ),
+        Edge("namhang", "jdj", "동해대로", 22.801, 50.0, 2, 12, 0, setOf(Tag.MOUNTAIN),
+            listOf(
+                Feature(0.000, SceneKind.SEA, "동해대로 해안도로", "바다 바로 옆으로 붙는다.", oneWay = true),
+                Feature(0.875, SceneKind.SEA, "동해대로 해안도로", "바다 바로 옆으로 붙는다.", reverseOnly = true),
+                Feature(17.900, SceneKind.PASS, "화비령 고갯마루", "곧 고갯마루야. 앞이 확 트여."),
+                Feature(18.200, SceneKind.TUNNEL_EXIT, "동해대로 출구", "곧 터널 끝이야. 나가면 분위기가 바뀐다.", len = 0.525, oneWay = true),
+                Feature(18.200, SceneKind.TUNNEL_EXIT, "동해대로 출구", "곧 터널 끝이야. 나가면 분위기가 바뀐다.", len = 0.525, reverseOnly = true),
+            ),
+        ),
+        Edge("jdj", "simgok", "헌화로", 7.710, 35.0, 0, 22, 58, setOf(Tag.SEA, Tag.MOUNTAIN),
+            listOf(
+                Feature(0.600, SceneKind.SEA, "헌화로 해안도로", "바다 바로 옆으로 붙는다.", oneWay = true),
+                Feature(1.300, SceneKind.SEA, "헌화로 해안도로", "바다 바로 옆으로 붙는다.", reverseOnly = true),
+                Feature(4.275, SceneKind.SEA, "헌화로 해안도로", "바다 바로 옆으로 붙는다.", oneWay = true),
+                Feature(7.700, SceneKind.SEA, "헌화로 해안도로", "바다 바로 옆으로 붙는다.", reverseOnly = true),
+            ),
+        ),
+        Edge("simgok", "home", "동해대로", 27.665, 50.0, 4, 19, -46, setOf(Tag.MOUNTAIN),
+            listOf(
+                Feature(0.000, SceneKind.SEA, "동해대로 해안도로", "바다 바로 옆으로 붙는다.", oneWay = true),
+                Feature(2.000, SceneKind.SEA, "동해대로 해안도로", "바다 바로 옆으로 붙는다.", reverseOnly = true),
+                Feature(6.700, SceneKind.PASS, "밤재 전망", "저 위에서 한번 내려다보자."),
+                Feature(6.875, SceneKind.TUNNEL_EXIT, "동해대로 출구", "곧 터널 끝이야. 나가면 분위기가 바뀐다.", len = 0.450, oneWay = true),
+                Feature(6.875, SceneKind.TUNNEL_EXIT, "동해대로 출구", "곧 터널 끝이야. 나가면 분위기가 바뀐다.", len = 0.450, reverseOnly = true),
+                Feature(13.375, SceneKind.TUNNEL_EXIT, "동해대로 출구", "곧 터널 끝이야. 나가면 분위기가 바뀐다.", len = 0.525, oneWay = true),
+                Feature(13.375, SceneKind.TUNNEL_EXIT, "동해대로 출구", "곧 터널 끝이야. 나가면 분위기가 바뀐다.", len = 0.525, reverseOnly = true),
+            ),
+        ),
+        Edge("jdj", "home", "동해대로", 19.416, 50.0, 4, 14, 6, setOf(Tag.MOUNTAIN),
+            listOf(
+                Feature(4.900, SceneKind.PASS, "화비령 고갯마루", "곧 고갯마루야. 앞이 확 트여."),
+                Feature(5.125, SceneKind.TUNNEL_EXIT, "동해대로 출구", "곧 터널 끝이야. 나가면 분위기가 바뀐다.", len = 0.525, oneWay = true),
+                Feature(5.125, SceneKind.TUNNEL_EXIT, "동해대로 출구", "곧 터널 끝이야. 나가면 분위기가 바뀐다.", len = 0.525, reverseOnly = true),
+            ),
+        ),
+        Edge("home", "seongsan", "경강로", 9.586, 55.0, 6, 7, 50, setOf(Tag.CITY),
+        ),
+        Edge("seongsan", "pass", "경강로", 14.134, 45.0, 0, 34, 788, setOf(Tag.MOUNTAIN),
+            listOf(
+                Feature(13.834, SceneKind.PASS, "대관령 고갯마루", "곧 고갯마루야. 앞이 확 트여.", oneWay = true),
+            ),
+        ),
+        Edge("pass", "home", "경강로", 22.901, 45.0, 5, 37, -833, setOf(Tag.MOUNTAIN),
+            listOf(
+                Feature(0.300, SceneKind.PASS, "대관령 고갯마루", "곧 고갯마루야. 앞이 확 트여.", reverseOnly = true),
+            ),
+        ),
+        Edge("seongsan", "ojuk", "경강로", 9.985, 50.0, 7, 5, -54, setOf(Tag.CITY),
+        ),
+        Edge("sacheon", "seongsan", "동해대로", 19.486, 50.0, 11, 9, 58, setOf(Tag.CITY),
+        ),
+    )
+}

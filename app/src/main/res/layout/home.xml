@@ -48,6 +48,15 @@
             android:layout_height="96dp"
             android:text="지난 드라이브"
             android:textSize="26sp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:gravity="center"
+            android:text="지도 데이터 © OpenStreetMap contributors"
+            android:textColor="@color/sub"
+            android:textSize="16sp" />
     </LinearLayout>
 
     <LinearLayout
