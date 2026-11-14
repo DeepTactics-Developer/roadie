@@ -66,14 +66,13 @@ class SimulatedDrive(var course: Course, private val warp: Double, private val p
     // 다음 장면(없으면 도착지)까지 남은 거리에 따라 배속을 서서히 줄인다.
     // 급하게 바꾸면 음악 쪽 도착 예상 시간이 튄다
     fun timeScale(): Double {
-        val next = course.scenes.firstOrNull { it.km > km }
-        val rem = (next?.km ?: course.km) - km
-        val zone = if (next != null) SLOW_ZONE_KM else 0.3
-        return (1 + (rem - zone) / 0.25).coerceIn(1.0, warp)
+        val next = course.slowPoints.filter { it.first > km }.minByOrNull { it.first }
+        val rem = (next?.first ?: course.km) - km
+        val zone = next?.second ?: 0.3
+        return (1 + (rem - zone) / 0.06).coerceIn(1.0, warp)
     }
 
     companion object {
         const val ACCEL = 2.5 // m/s²
-        const val SLOW_ZONE_KM = 1.0
     }
 }

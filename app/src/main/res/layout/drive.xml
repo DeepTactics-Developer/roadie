@@ -2,56 +2,181 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/bg">
+    android:background="@drawable/bg_screen">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:orientation="vertical"
-        android:padding="56dp">
-
-        <TextView
-            android:id="@+id/nextName"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textColor="@color/text"
-            android:textSize="60sp" />
-
-        <TextView
-            android:id="@+id/remain"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textColor="@color/accent"
-            android:textSize="44sp" />
-
-        <com.deeptactics.roadie.DriveView
-            android:id="@+id/driveView"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_marginVertical="32dp"
-            android:layout_weight="1" />
+        android:orientation="horizontal"
+        android:padding="40dp">
 
         <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
+            android:layout_width="420dp"
+            android:layout_height="match_parent"
+            android:orientation="vertical">
+
+            <com.deeptactics.roadie.CarFace
+                android:id="@+id/face"
+                android:layout_width="match_parent"
+                android:layout_height="300dp" />
+
+            <TextView
+                android:id="@+id/bubble"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_bubble"
+                android:padding="24dp"
+                android:textColor="@color/text"
+                android:textSize="30sp" />
+
+            <Space
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
+
+            <com.deeptactics.roadie.MusicView
+                android:id="@+id/music"
+                android:layout_width="match_parent"
+                android:layout_height="150dp" />
 
             <TextView
                 android:id="@+id/speed"
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
+                android:layout_marginTop="20dp"
+                android:gravity="center"
                 android:textColor="@color/sub"
-                android:textSize="36sp" />
-
-            <Button
-                android:id="@+id/stop"
-                android:layout_width="240dp"
-                android:layout_height="104dp"
-                android:text="그만 달리기"
-                android:textSize="28sp" />
+                android:textSize="30sp" />
         </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_marginStart="40dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="bottom"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/nextName"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:textColor="@color/text"
+                    android:textSize="56sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/remain"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/accent"
+                    android:textSize="48sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_marginVertical="24dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_card"
+                android:padding="16dp">
+
+                <com.deeptactics.roadie.RouteView
+                    android:id="@+id/route"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent" />
+            </FrameLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/course"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:textColor="@color/sub"
+                    android:textSize="26sp" />
+
+                <TextView
+                    android:id="@+id/stop"
+                    style="@style/Ghost"
+                    android:layout_width="260dp"
+                    android:layout_height="100dp"
+                    android:text="그만 달리기"
+                    android:textSize="28sp" />
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- 갈림길 선택 -->
+    <LinearLayout
+        android:id="@+id/forkPanel"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#D90B0F17"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/forkTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="곧 갈림길"
+            android:textColor="@color/warm"
+            android:textSize="40sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="40dp"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/left"
+                android:layout_width="520dp"
+                android:layout_height="220dp"
+                android:background="@drawable/bg_choice"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:textColor="@color/text"
+                android:textSize="52sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/right"
+                android:layout_width="520dp"
+                android:layout_height="220dp"
+                android:layout_marginStart="48dp"
+                android:background="@drawable/bg_choice"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:textColor="@color/text"
+                android:textSize="52sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/forkHint"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="36dp"
+            android:textColor="@color/sub"
+            android:textSize="28sp" />
     </LinearLayout>
 
     <TextView
@@ -61,8 +186,8 @@
         android:layout_gravity="center"
         android:alpha="0"
         android:shadowColor="#000000"
-        android:shadowRadius="32"
+        android:shadowRadius="40"
         android:textColor="@color/text"
-        android:textSize="96sp"
+        android:textSize="104sp"
         android:textStyle="bold" />
 </FrameLayout>

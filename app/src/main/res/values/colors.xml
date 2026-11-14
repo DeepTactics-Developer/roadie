@@ -1,8 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="bg">#0E1116</color>
-    <color name="card">#1A2029</color>
-    <color name="text">#FFFFFF</color>
-    <color name="sub">#8A93A3</color>
+    <color name="bg">#0B0F17</color>
+    <color name="bg2">#131C2B</color>
+    <color name="card">#172030</color>
+    <color name="card2">#202B3F</color>
+    <color name="line">#2C3A53</color>
+    <color name="text">#F5F7FA</color>
+    <color name="sub">#8C98AD</color>
     <color name="accent">#4FC3F7</color>
+    <color name="warm">#FFB74D</color>
+    <color name="sea">#4FC3F7</color>
+    <color name="lake">#80DEEA</color>
+    <color name="mountain">#9CCC65</color>
+    <color name="city">#CE93D8</color>
 </resources>

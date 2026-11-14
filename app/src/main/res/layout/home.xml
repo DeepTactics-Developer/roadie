@@ -2,77 +2,208 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/bg"
-    android:orientation="vertical"
-    android:padding="56dp">
+    android:background="@drawable/bg_screen"
+    android:orientation="horizontal"
+    android:padding="40dp">
 
+    <!-- 반려차 -->
     <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal">
+        android:layout_width="460dp"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <com.deeptactics.roadie.CarFace
+            android:id="@+id/face"
+            android:layout_width="match_parent"
+            android:layout_height="320dp" />
 
         <TextView
             android:id="@+id/bubble"
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
+            android:background="@drawable/bg_bubble"
+            android:lineSpacingExtra="6dp"
+            android:padding="28dp"
             android:textColor="@color/text"
-            android:textSize="44sp" />
+            android:textSize="28sp" />
 
         <TextView
             android:id="@+id/record"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginStart="32dp"
-            android:gravity="end"
+            android:layout_marginTop="20dp"
+            android:gravity="center"
             android:textColor="@color/sub"
-            android:textSize="24sp" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/courses"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_marginVertical="40dp"
-        android:layout_weight="1"
-        android:orientation="horizontal" />
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal">
-
-        <Switch
-            android:id="@+id/simulate"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:checked="true"
-            android:text="시뮬레이션 주행  "
-            android:textColor="@color/sub"
-            android:textSize="26sp" />
-
-        <Button
-            android:id="@+id/warp"
-            android:layout_width="wrap_content"
-            android:layout_height="96dp"
-            android:layout_marginStart="24dp"
-            android:minWidth="160dp"
-            android:text="10x"
-            android:textSize="28sp" />
+            android:textSize="22sp" />
 
         <Space
             android:layout_width="0dp"
             android:layout_height="0dp"
             android:layout_weight="1" />
 
-        <Button
-            android:id="@+id/start"
-            android:layout_width="360dp"
-            android:layout_height="120dp"
-            android:backgroundTint="@color/accent"
-            android:text="출발"
-            android:textColor="@color/bg"
-            android:textSize="44sp" />
+        <TextView
+            android:id="@+id/diary"
+            style="@style/Ghost"
+            android:layout_width="match_parent"
+            android:layout_height="96dp"
+            android:text="지난 드라이브"
+            android:textSize="26sp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_marginStart="40dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <!-- 말로 코스 짜기 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <com.deeptactics.roadie.MicButton
+                android:id="@+id/mic"
+                android:layout_width="150dp"
+                android:layout_height="150dp" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="24dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="어떤 드라이브 할까?"
+                    android:textColor="@color/text"
+                    android:textSize="40sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/heard"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="마이크를 누르고 시간과 기분을 말해 봐"
+                    android:textColor="@color/sub"
+                    android:textSize="26sp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/chips"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:orientation="horizontal" />
+
+        <!-- 만들어진 코스 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_marginVertical="24dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_card"
+            android:orientation="horizontal"
+            android:padding="28dp">
+
+            <com.deeptactics.roadie.RouteView
+                android:id="@+id/route"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1" />
+
+            <LinearLayout
+                android:layout_width="420dp"
+                android:layout_height="match_parent"
+                android:layout_marginStart="24dp"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/wish"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/warm"
+                    android:textSize="22sp" />
+
+                <TextView
+                    android:id="@+id/name"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:textColor="@color/text"
+                    android:textSize="34sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/stats"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:textColor="@color/accent"
+                    android:textSize="26sp" />
+
+                <TextView
+                    android:id="@+id/scenes"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_marginTop="16dp"
+                    android:layout_weight="1"
+                    android:lineSpacingExtra="10dp"
+                    android:textColor="@color/text"
+                    android:textSize="24sp" />
+
+                <TextView
+                    android:id="@+id/other"
+                    style="@style/Ghost"
+                    android:layout_width="match_parent"
+                    android:layout_height="80dp"
+                    android:text="다른 코스"
+                    android:textSize="24sp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <Switch
+                android:id="@+id/simulate"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:checked="true"
+                android:text="시뮬레이션 주행  "
+                android:textColor="@color/sub"
+                android:textSize="22sp" />
+
+            <TextView
+                android:id="@+id/warp"
+                style="@style/Chip"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:gravity="center"
+                android:minWidth="120dp" />
+
+            <Space
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
+
+            <TextView
+                android:id="@+id/start"
+                style="@style/Primary"
+                android:layout_width="360dp"
+                android:layout_height="116dp"
+                android:text="출발"
+                android:textSize="44sp" />
+        </LinearLayout>
     </LinearLayout>
 </LinearLayout>

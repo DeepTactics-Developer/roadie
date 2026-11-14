@@ -21,7 +21,7 @@ class ArrangerTest {
         val latency = 8192L // 오디오 버퍼만큼 앞서 쓴다
         var jamBuildBars = 0
         val tick = sr / 20 // 50ms
-        val tag = "${course.id} ${warp}x ${if (hint) "예측" else "평균속도"}"
+        val tag = "${course.name} ${warp}x ${if (hint) "예측" else "평균속도"}"
 
         while (sim.km < course.km && now < 3600 * sr) {
             sim.update(tick.toDouble() / sr)
@@ -45,12 +45,17 @@ class ArrangerTest {
             val lead = (d - lineAt.getValue(s.name)).toDouble() / sr
             assertTrue("$tag ${s.name} 대사 후 ${"%.0f".format(lead)}초 만에 드롭", lead >= 12)
         }
-        if (course.id == "sea" && hint) assertTrue("$tag 정체 구간에서 빌드업 반복(${jamBuildBars}마디)", jamBuildBars >= 4)
+        if (hint && course.segments.any { it.jam }) assertTrue("$tag 정체 구간에서 빌드업 반복(${jamBuildBars}마디)", jamBuildBars >= 4)
+    }
+
+    companion object {
+        val WISHES = listOf("40분, 바다 느낌, 신호 적은 길", "한 시간 고갯길 와인딩", "30분 호숫가 한 바퀴", "50분 바다", "그냥 아무 데나")
     }
 
     @Test
     fun allCourses() {
-        for (c in COURSES) {
+        for (text in WISHES) {
+            val c = Composer.compose(Wish.parse(text)).withJam()
             run(c, 1.0, hint = false)
             for (w in listOf(1.0, 10.0, 20.0)) run(c, w, hint = true)
         }
