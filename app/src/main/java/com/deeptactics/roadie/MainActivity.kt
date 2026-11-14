@@ -30,7 +30,7 @@ class MainActivity : Activity() {
     private var wish = Wish()
     private var heard: String? = null
     private var skip = 0
-    private lateinit var course: Course
+    private var course: Course? = null
 
     private var screen = ""
     private var dropSeen = 0
@@ -48,21 +48,43 @@ class MainActivity : Activity() {
         if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), REQ_NOTI)
         }
-        val taste = records.taste()
-        wish = Taste.suggest(taste, records.drives())
-        course = Composer.compose(wish, taste)
+        RoadieApp.requestHere()
+        RoadieApp.loadGraph(this)
+        wish = defaultWish()
+        recompose()
         dropSeen = Session.dropSeq
     }
 
     override fun onResume() {
         super.onResume()
+        RoadieApp.onHere = { onHere() }
+        RoadieApp.requestHere()
         handler.post(ui)
     }
 
     override fun onPause() {
+        RoadieApp.onHere = null
         handler.removeCallbacks(ui)
         super.onPause()
     }
+
+    // 지금 위치에 맞는 지도로 코스를 짠다
+    private fun recompose(skipTo: Int = 0) {
+        RoadieApp.loadGraph(this)
+        course = Composer.compose(RoadieApp.graph, RoadieApp.here.node, wish, records.taste(), skipTo)
+    }
+
+    // 내비가 위치를 새로 알려 주면 홈에서는 코스를 다시 짠다
+    private fun onHere() {
+        if (screen == "home" && Session.phase == Session.Phase.HOME) {
+            skip = 0
+            RoadieApp.loadGraph(this)
+            if (heard == null) wish = defaultWish()
+            recompose()
+            showCourse()
+        }
+    }
+
 
     // 지금 보여 줄 화면을 서비스 상태에 맞춘다
     private fun sync() {
@@ -117,7 +139,7 @@ class MainActivity : Activity() {
         Session.homeFail = { say(Lines.NOT_HEARD) }
 
         val chips = findViewById<LinearLayout>(R.id.chips)
-        for (ex in EXAMPLES) {
+        for (ex in examples()) {
             chips.addView(TextView(this, null, 0, R.style.Chip).apply {
                 text = ex
                 setOnClickListener { onWish(ex) }
@@ -130,8 +152,8 @@ class MainActivity : Activity() {
         }
         findViewById<View>(R.id.other).setOnClickListener {
             skip++
-            course = Composer.compose(wish, records.taste(), skip)
-            say(Lines.composed(wish, course))
+            recompose(skip)
+            course?.let { say(Lines.composed(wish, it)) }
             showCourse()
         }
         findViewById<Switch>(R.id.simulate).apply {
@@ -155,23 +177,63 @@ class MainActivity : Activity() {
 
     private fun showCourse() {
         heard?.let { findViewById<TextView>(R.id.heard).text = "“$it”" }
-        findViewById<RouteView>(R.id.route).course = course
+        findViewById<TextView>(R.id.where).text = "출발 · 지금 위치 " + RoadieApp.here.label
+        val c = course
+        findViewById<RouteView>(R.id.route).course = c
         findViewById<TextView>(R.id.wish).text = wish.summary()
-        findViewById<TextView>(R.id.name).text = course.name
-        val shares = listOf(Tag.SEA, Tag.LAKE, Tag.MOUNTAIN).filter { course.share(it) >= 0.1 }.joinToString(" · ") { "${it.word} ${(course.share(it) * 100).toInt()}%" }
-        findViewById<TextView>(R.id.stats).text = "약 %d분 · %.1f km · 신호 %d개".format(course.minutes.toInt(), course.km, course.signals) +
+        findViewById<View>(R.id.start).apply {
+            isEnabled = c != null
+            alpha = if (c != null) 1f else 0.35f
+        }
+        if (c == null) {
+            findViewById<TextView>(R.id.name).text = "이 근처엔 아직 코스가 없어"
+            findViewById<TextView>(R.id.stats).text = "지도를 준비한 지역(수도권, 강릉) 안에서 써 줘"
+            findViewById<TextView>(R.id.scenes).text = ""
+            return
+        }
+        findViewById<TextView>(R.id.name).text = c.name
+        val shares = listOf(Tag.SEA, Tag.RIVER, Tag.LAKE, Tag.MOUNTAIN).filter { c.share(it) >= 0.1 }.joinToString(" · ") { "${it.word} ${(c.share(it) * 100).toInt()}%" }
+        findViewById<TextView>(R.id.stats).text = "약 %d분 · %.1f km · 신호 %d개".format(c.minutes.toInt(), c.km, c.signals) +
             if (shares.isEmpty()) "" else "\n$shares"
-        val f = course.fork
-        findViewById<TextView>(R.id.scenes).text = (course.scenes.map { "●  ${it.name}" } +
-            listOfNotNull(f?.let { "◆  ${it.node.name}에서 갈림길 (${it.left.label} / ${it.right.label})" })).joinToString("\n")
+        val f = c.fork
+        val conn = c.legs.filter { it.edge.connector }.sumOf { it.edge.km }
+        findViewById<TextView>(R.id.scenes).text = (c.scenes.map { "●  ${it.name}" } +
+            listOfNotNull(f?.let { "◆  ${it.node.name}에서 갈림길 (${it.left.label} / ${it.right.label})" }) +
+            listOf("↳  연결 구간 %.1f km (지도 분석 없음)".format(conn))).joinToString("\n")
+    }
+
+    // 지금 위치 근처 도로에 많은 성격 순서(두 조각 이상 있는 것만)
+    private fun availableTags(): List<Tag> {
+        val here = RoadieApp.here.node
+        val near = RoadieApp.graph.edges.filter { it.a.km(here) < 30 || it.b.km(here) < 30 }
+        return listOf(Tag.SEA, Tag.RIVER, Tag.MOUNTAIN, Tag.LAKE).sortedByDescending { t -> near.count { t in it.tags } }.filter { t -> near.count { t in it.tags } >= 2 }
+    }
+
+    // 처음 보여 줄 코스의 바람. 말하기 전에도 근처에 실제로 있는 성격으로 짠다(취향이 맞으면 취향대로)
+    private fun defaultWish(): Wish {
+        val avail = availableTags()
+        val fav = Taste.favorite(records.taste())
+        val tag = if (fav != null && fav in avail) fav else avail.firstOrNull()
+        return Wish(Taste.suggest(records.taste(), records.drives()).minutes, setOfNotNull(tag), fewSignals = true)
+    }
+
+    // 지금 위치 근처에 많은 성격을 골라 예시 문장으로 보여 준다
+    private fun examples(): List<String> {
+        val texts = mapOf(
+            Tag.SEA to "40분, 바다 느낌, 신호 적은 길",
+            Tag.RIVER to "40분, 한강 야경, 신호 적은 길",
+            Tag.MOUNTAIN to "한 시간, 고갯길 와인딩",
+            Tag.LAKE to "30분 호숫가 한 바퀴",
+        )
+        return (availableTags().ifEmpty { listOf(Tag.MOUNTAIN) }).take(3).map { texts.getValue(it) }
     }
 
     private fun onWish(text: String) {
         heard = text
         wish = Wish.parse(text)
         skip = 0
-        course = Composer.compose(wish, records.taste())
-        say(Lines.composed(wish, course))
+        recompose()
+        say(course?.let { Lines.composed(wish, it) } ?: "이 근처엔 아직 코스가 없어.")
         showCourse()
     }
 
@@ -183,7 +245,7 @@ class MainActivity : Activity() {
             return
         }
         listener.stop()
-        Session.plan = course
+        Session.plan = course ?: return
         Session.result = null
         Session.phase = Session.Phase.DRIVING
         runCatching { DriveService.start(this) }.onFailure {
@@ -198,7 +260,7 @@ class MainActivity : Activity() {
     }
 
     private fun showDrive() {
-        val c = Session.course ?: Session.plan ?: course
+        val c = Session.course ?: Session.plan ?: course ?: return
         setScreen("drive", R.layout.drive)
         forkShown = false
         dropSeen = Session.dropSeq
@@ -326,6 +388,5 @@ class MainActivity : Activity() {
         const val TICK_MS = 50L
         const val REQ_SPEED = 1
         const val REQ_NOTI = 2
-        val EXAMPLES = listOf("40분, 바다 느낌, 신호 적은 길", "한 시간, 고갯길 와인딩", "30분 호숫가 한 바퀴")
     }
 }

@@ -24,7 +24,8 @@ class DriveStats {
 // 도로 테이스팅 노트와 취향 학습
 object Taste {
     fun note(c: Course, upToKm: Double, st: DriveStats): String {
-        val legs = c.legs.filter { it.fromKm < upToKm }
+        // 지도 데이터가 없는 연결 구간은 맛보기에서 뺀다
+        val legs = c.legs.filter { it.fromKm < upToKm && !it.edge.connector }
         if (legs.isEmpty()) return "아직 맛볼 만큼 달리지 못했어."
         val out = mutableListOf<String>()
         legs.maxByOrNull { it.edge.curves }?.takeIf { it.edge.curves >= 3 }?.let {
@@ -41,6 +42,8 @@ object Taste {
         if (st.jam > 20) out += "정체 ${(st.jam / 60).toInt().coerceAtLeast(1)}분, 음악이 기다려 줌"
         val seaKm = legs.filter { Tag.SEA in it.edge.tags }.sumOf { it.edge.km }
         if (seaKm >= 5) out += "바다 곁으로 ${seaKm.toInt()}km"
+        val riverKm = legs.sumOf { it.edge.km * it.edge.river }
+        if (riverKm >= 4) out += "강 곁으로 ${riverKm.toInt()}km"
         val signals = legs.sumOf { it.edge.signals }
         val per10 = signals / legs.sumOf { it.edge.km } * 10
         out += when {

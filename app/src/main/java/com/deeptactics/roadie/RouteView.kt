@@ -82,10 +82,17 @@ class RouteView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
             canvas.drawPath(path, line)
             line.pathEffect = null
         }
-        line.color = 0x664FC3F7
+        // 지도 분석이 없는 연결 구간은 점선으로
         line.strokeWidth = u * 2.6f
-        stroke(c.legs)
-        canvas.drawPath(path, line)
+        for (l in c.legs) {
+            path.reset()
+            path.moveTo(x(l.from), y(l.from))
+            path.lineTo(x(l.to), y(l.to))
+            line.color = if (l.edge.connector) 0x554FC3F7 else 0x884FC3F7.toInt()
+            line.pathEffect = if (l.edge.connector) DashPathEffect(floatArrayOf(u * 1.6f, u * 1.6f), 0f) else null
+            canvas.drawPath(path, line)
+        }
+        line.pathEffect = null
 
         // 지나온 부분
         if (km >= 0) {
@@ -151,6 +158,7 @@ class RouteView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
         fun kindColor(k: SceneKind) = when (k) {
             SceneKind.SEA, SceneKind.TUNNEL_EXIT -> 0xFF4FC3F7.toInt()
             SceneKind.LAKE -> 0xFF80DEEA.toInt()
+            SceneKind.RIVER -> 0xFF64B5F6.toInt()
             SceneKind.PASS, SceneKind.VIEW -> 0xFF9CCC65.toInt()
             SceneKind.BRIDGE -> 0xFFCE93D8.toInt()
         }

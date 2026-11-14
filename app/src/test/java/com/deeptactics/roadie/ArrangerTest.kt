@@ -48,14 +48,10 @@ class ArrangerTest {
         if (hint && course.segments.any { it.jam }) assertTrue("$tag 정체 구간에서 빌드업 반복(${jamBuildBars}마디)", jamBuildBars >= 4)
     }
 
-    companion object {
-        val WISHES = listOf("40분, 바다 느낌, 신호 적은 길", "한 시간 고갯길 와인딩", "30분 호숫가 한 바퀴", "50분 바다", "그냥 아무 데나")
-    }
-
     @Test
     fun allCourses() {
-        for (text in WISHES) {
-            val c = Composer.compose(Wish.parse(text)).withJam()
+        for (k in TestRoads.CASES) {
+            val c = Composer.compose(k.graph, k.here, Wish.parse(k.wish))?.withJam() ?: continue
             run(c, 1.0, hint = false)
             for (w in listOf(1.0, 10.0, 40.0)) run(c, w, hint = true)
         }

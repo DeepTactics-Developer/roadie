@@ -46,4 +46,5 @@ dependencies {
     implementation("ai.pleos.playground:TextToSpeech:3.3.1")
     implementation("ai.pleos.playground:SpeechToText:3.3.1")
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.json:json:20231013")
 }

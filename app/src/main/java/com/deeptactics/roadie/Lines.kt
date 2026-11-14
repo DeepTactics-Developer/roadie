@@ -25,9 +25,13 @@ object Lines {
     const val JAM = "좀 막히네. 음악은 기다려 줄게."
 
     fun composed(w: Wish, c: Course): String {
-        val mood = w.tags.joinToString(", ") { it.word }.ifEmpty { "기분 좋은" }
+        // 바란 분위기가 근처에 없으면 숨기지 않고 말한다
+        val missing = w.tags.filter { c.share(it) < 0.05 }
+        val have = w.tags - missing.toSet()
+        val mood = have.joinToString(", ") { it.word }.ifEmpty { "기분 좋은" }
         val fork = if (c.fork != null) " 중간에 갈림길도 하나 있어." else ""
-        return "좋아, $mood 쪽으로 ${c.minutes.toInt()}분짜리 한 바퀴 짰어.$fork"
+        val note = if (missing.isNotEmpty()) " ${missing.joinToString(", ") { it.word }} 길은 근처에 마땅한 데가 없어서 가까운 걸로 짰어." else ""
+        return "좋아, $mood 쪽으로 ${c.minutes.toInt()}분짜리 한 바퀴 짰어.$fork$note"
     }
 
     fun forkAsk(f: Fork) = "곧 갈림길이야. 왼쪽은 ${f.left.label}, 오른쪽은 ${f.right.label}. 어디로 갈래?"
@@ -39,6 +43,7 @@ object Lines {
         SceneKind.TUNNEL_EXIT -> "터널 나오는 순간, 이거지."
         SceneKind.SEA -> "바다 냄새 난다."
         SceneKind.LAKE -> "호수 잔잔하다."
+        SceneKind.RIVER -> "강바람 시원하다."
         SceneKind.PASS -> "여기서 보는 거 최고야."
         SceneKind.VIEW -> "공기부터 다르다."
         SceneKind.BRIDGE -> "다리 위가 제일 시원해."
@@ -51,6 +56,7 @@ object Lines {
             SceneKind.TUNNEL_EXIT -> "터널 빠져나올 때 그 순간, 나도 좋았어."
             SceneKind.SEA -> "바다 옆으로 달린 거, 오래 기억할게."
             SceneKind.LAKE -> "호숫가 지날 때 음악이랑 딱 맞았지?"
+            SceneKind.RIVER -> "강 옆으로 달릴 때 곡이 잘 어울렸지?"
             SceneKind.PASS -> "고갯마루에서 확 트이던 거 좋았지?"
             SceneKind.VIEW -> "계곡 공기 아직 남아 있는 것 같아."
             SceneKind.BRIDGE -> "다리 건널 때 좋더라."
@@ -80,6 +86,7 @@ object Lines {
     private fun words(label: String) = when (label) {
         Tag.SEA.word -> listOf("바다", "해변", "해안")
         Tag.LAKE.word -> listOf("호수")
+        Tag.RIVER.word -> listOf("강", "한강")
         Tag.MOUNTAIN.word -> listOf("산", "고개", "고갯")
         else -> listOf("시내", "도시")
     }

@@ -107,8 +107,9 @@ class DriveService : Service() {
         val wps = c.waypoints.mapIndexed { i, n ->
             RequestWaypointInfo(n.lat, n.lon, n.name, if (i == 0) WaypointIndex.FIRST else WaypointIndex.SECOND, "", "0", n.name, "")
         }
+        // 목적지가 출발 위치와 같으면 내비가 마지막 구간을 없애 버려서, 100m쯤 옆으로 비켜 둔다
         val dest = RouteInfo(
-            latitude = home.lat, longitude = home.lon, displayLongitude = null, displayLatitude = null,
+            latitude = home.lat + HERE_SHIFT, longitude = home.lon + HERE_SHIFT, displayLongitude = null, displayLatitude = null,
             poiName = home.name, poiId = "", poiSubId = "0", address = home.name,
         )
         requestRouteWithWaypoints(RouteWithWaypointsRequest(dest, wps))
@@ -340,6 +341,7 @@ class DriveService : Service() {
         // 내비 안내 음성은 요청 뒤 늦으면 6초쯤 지나서 나온다
         const val NAVI_VOICE_MS = 7000L
         const val FORK_WAIT_MS = 16000L
+        const val HERE_SHIFT = 0.0015
         const val ACTION_STOP = "roadie.STOP"
         const val ACTION_LEFT = "roadie.LEFT"
         const val ACTION_RIGHT = "roadie.RIGHT"

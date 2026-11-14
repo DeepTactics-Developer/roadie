@@ -1,6 +1,7 @@
 package com.deeptactics.roadie
 
 import kotlin.math.abs
+import kotlin.math.max
 
 // 말로 한 바람. "40분, 바다 느낌, 신호 적은 길"
 class Wish(
@@ -29,8 +30,9 @@ class Wish(
                 min = h * 60 + (if (hour.groupValues[2].isNotEmpty()) 30 else 0) + (min ?: 0)
             } else if ("반시간" in t) min = 30
             val tags = mutableSetOf<Tag>()
-            if (Regex("바다|해변|해안|파도|오션|동해").containsMatchIn(t)) tags += Tag.SEA
+            if (Regex("바다|해변|해안|파도|오션|동해|서해").containsMatchIn(t)) tags += Tag.SEA
             if (Regex("호수|호숫가|경포호").containsMatchIn(t)) tags += Tag.LAKE
+            if (Regex("한강|강변|강가|리버|야경").containsMatchIn(t)) tags += Tag.RIVER
             if (Regex("산|고개|고갯길|숲|계곡|대관령|와인딩").containsMatchIn(t)) tags += Tag.MOUNTAIN
             if (Regex("시내|도심|도시").containsMatchIn(t)) tags += Tag.CITY
             return Wish(
@@ -44,32 +46,64 @@ class Wish(
     }
 }
 
-// 도로 조각을 이어서 출발지로 돌아오는 순환 코스를 만든다
+// 지금 위치에서 나가 도로 조각을 이어 같은 자리로 돌아오는 코스를 만든다.
+// 지금 위치와 첫 지점, 마지막 지점과 지금 위치 사이는 지도 데이터가 없어서 직선거리로 추정한 연결 구간으로 둔다
 object Composer {
-    private const val MAX_LOOP_KM = 100.0
     private const val SAME_COURSE = 0.6
     private const val FORK_LOOKAHEAD = 20
     private const val FORK_BONUS = 0.8
-    private val loops: List<List<Leg>> by lazy { findLoops() }
+    private const val MAX_ENTRY = 5
+    private const val ENTRY_SLACK_KM = 2.5
+    private const val EXIT_SLACK_KM = 4.0
+    private const val MAX_DEPTH = 6
+    private const val MAX_CANDIDATES = 3000
+    private const val CONNECTOR_KMH = 35.0
+    private const val DETOUR = 1.3 // 직선거리 대비 도로가 돌아가는 정도
 
-    // 강릉역에서 나가서 같은 노드를 두 번 안 지나고 돌아오는 길을 전부 찾는다. 조각이 20개 남짓이라 금방이다
-    private fun findLoops(): List<List<Leg>> {
-        val out = mutableListOf<List<Leg>>()
-        fun dfs(at: String, path: List<Leg>, seen: Set<String>, km: Double) {
-            if (path.size > 8 || km > MAX_LOOP_KM) return
-            for (e in RoadMap.edges) {
-                val rev = e.b == at
-                if (e.a != at && !rev) continue
-                if (path.any { it.edge === e }) continue
-                val next = if (rev) e.a else e.b
-                val leg = Leg(e, rev, km)
-                if (next == RoadMap.HOME) {
-                    if (path.isNotEmpty()) out += path + leg
-                } else if (next !in seen) dfs(next, path + leg, seen + next, leg.toKm)
-            }
+    // 한 번 만든 후보들. 갈림길 대안도 여기서 찾는다
+    class Pool(val here: Node, val courses: List<Course>)
+
+    fun candidates(g: Graph, here: Node, w: Wish): Pool {
+        val radius = (w.minutes * 0.6).coerceIn(8.0, 60.0)
+        val minMin = w.minutes * 0.5
+        val maxMin = w.minutes * 1.6
+        val conns = HashMap<String, Edge>()
+        fun conn(a: Node, b: Node) = conns.getOrPut(a.id + ">" + b.id) {
+            Edge(a, b, "연결 구간", max(0.05, a.km(b) * DETOUR), CONNECTOR_KMH, 0, 0, 0, emptySet(), connector = true)
         }
-        dfs(RoadMap.HOME, emptyList(), setOf(RoadMap.HOME), 0.0)
-        return out
+
+        val out = ArrayList<Course>()
+        val near = g.near(here, radius)
+        if (near.isEmpty()) return Pool(here, emptyList())
+        // 지도 데이터가 없는 연결 구간이 길어지지 않게, 가장 가까운 지점 근처에서만 들어가고 나온다
+        val d0 = near.first().second
+        val entries = near.filter { it.second <= d0 + ENTRY_SLACK_KM }.take(MAX_ENTRY).map { it.first }
+        val exitMaxKm = d0 + EXIT_SLACK_KM
+        for (entry in entries) {
+            val cin = conn(here, entry)
+            fun dfs(at: Node, path: List<Pair<Edge, Boolean>>, seen: Set<String>, minutes: Double) {
+                for ((e, rev) in g.adj[at.id].orEmpty()) {
+                    if (out.size >= MAX_CANDIDATES) return
+                    val next = if (rev) e.a else e.b
+                    if (next.id in seen || next.km(here) > radius * 1.3) continue
+                    val m = minutes + e.km / e.kmh * 60
+                    val cout = conn(next, here)
+                    if (m + cout.km / cout.kmh * 60 > maxMin) continue
+                    val np = path + (e to rev)
+                    if (next.km(here) <= exitMaxKm && m + cout.km / cout.kmh * 60 >= minMin && np.any { it.first.features.isNotEmpty() }) out += build(cin, np, cout)
+                    if (np.size < MAX_DEPTH) dfs(next, np, seen + next.id, m)
+                }
+            }
+            dfs(entry, emptyList(), setOf(entry.id), cin.km / cin.kmh * 60)
+        }
+        return Pool(here, out.filter { it.scenes.isNotEmpty() })
+    }
+
+    private fun build(cin: Edge, path: List<Pair<Edge, Boolean>>, cout: Edge): Course {
+        var at = 0.0
+        val legs = ArrayList<Leg>()
+        for ((e, r) in listOf(cin to false) + path + (cout to false)) legs += Leg(e, r, at).also { at = it.toKm }
+        return Course(legs)
     }
 
     fun score(c: Course, w: Wish, taste: Map<Tag, Double> = emptyMap()): Double {
@@ -81,6 +115,7 @@ object Composer {
         s -= c.signals * if (w.fewSignals || w.quiet) 0.12 else 0.03
         if (w.curvy) s += c.curves * 0.12
         if (w.quiet) s -= c.share(Tag.CITY) * 2
+        s -= c.connectorShare * 2.5 // 분석 안 된 연결 구간이 길수록 깎는다
         s += Tag.entries.sumOf { c.share(it) * (taste[it] ?: 0.0) }
         return s
     }
@@ -89,21 +124,21 @@ object Composer {
         when (it) {
             Tag.SEA -> listOf(SceneKind.SEA, SceneKind.TUNNEL_EXIT)
             Tag.LAKE -> listOf(SceneKind.LAKE)
+            Tag.RIVER -> listOf(SceneKind.RIVER, SceneKind.BRIDGE)
             Tag.MOUNTAIN -> listOf(SceneKind.PASS, SceneKind.VIEW)
             Tag.CITY -> listOf(SceneKind.BRIDGE)
         }
     }
 
     // 점수 순으로 줄 세우되, 앞서 나온 코스와 길이 많이 겹치면(같은 길을 거꾸로 도는 것 포함) 건너뛴다.
-    // skip번째를 준다("다른 코스")
-    fun compose(w: Wish, taste: Map<Tag, Double> = emptyMap(), skip: Int = 0): Course {
-        val scored = loops.map { Course(it) }
-            .filter { it.scenes.isNotEmpty() }
-            .map { it to score(it, w, taste) }
-            .sortedByDescending { it.second }
+    // skip번째를 준다("다른 코스"). 근처에 코스가 없으면 null
+    fun compose(g: Graph, here: Node, w: Wish, taste: Map<Tag, Double> = emptyMap(), skip: Int = 0): Course? {
+        val pool = candidates(g, here, w)
+        val scored = pool.courses.map { it to score(it, w, taste) }.sortedByDescending { it.second }
+        if (scored.isEmpty()) return null
         // 갈림길이 있는 코스가 이야기가 되니, 앞쪽 후보에는 가산점을 준다
         val head = scored.take(FORK_LOOKAHEAD).map { (c, sc) ->
-            c.fork = fork(c, w, taste)
+            c.fork = fork(pool, c, w, taste)
             c to sc + if (c.fork != null) FORK_BONUS else 0.0
         }
         val ranked = (head + scored.drop(FORK_LOOKAHEAD)).sortedByDescending { it.second }.map { it.first }
@@ -113,15 +148,16 @@ object Composer {
             if (picks.size > skip) break
         }
         val c = picks.getOrNull(skip) ?: picks[skip % picks.size]
-        if (c.fork == null) c.fork = fork(c, w, taste)
+        if (c.fork == null) c.fork = fork(pool, c, w, taste)
         return c
     }
 
     // 두 코스가 같은 길 조각을 얼마나 나눠 쓰는지 0~1
     fun overlap(a: Course, b: Course): Double {
-        val x = a.legs.map { it.edge }.toSet()
-        val y = b.legs.map { it.edge }.toSet()
-        return x.intersect(y).size.toDouble() / x.union(y).size
+        // 연결 구간은 출발 위치마다 새로 생기는 것이라 빼고 비교한다
+        val x = a.legs.filter { !it.edge.connector }.map { it.edge }.toSet()
+        val y = b.legs.filter { !it.edge.connector }.map { it.edge }.toSet()
+        return if (x.isEmpty() || y.isEmpty()) 0.0 else x.intersect(y).size.toDouble() / x.union(y).size
     }
 
     // 갈림길 질문은 장면 대사나 드롭과 겹치면 안 된다. 앞쪽 80초, 뒤쪽 40초 안에 장면이 없어야 한다.
@@ -133,16 +169,15 @@ object Composer {
     }
 
     // 코스 중간에서 성격이 다른 길로 갈라지는 지점을 하나 찾는다
-    fun fork(c: Course, w: Wish, taste: Map<Tag, Double> = emptyMap()): Fork? {
+    fun fork(pool: Pool, c: Course, w: Wish, taste: Map<Tag, Double> = emptyMap()): Fork? {
         for (strict in listOf(true, false)) for (i in 1 until c.legs.size) {
             val at = c.legs[i].fromKm
             if (at < 2.0 || at > c.km - 3.0 || !forkClear(c, at, strict)) continue
             val head = c.legs.subList(0, i)
             val mine = label(c.legs.drop(i))
-            val alt = loops.asSequence()
-                .filter { it.size > i && head.indices.all { k -> it[k].same(head[k]) } && !it[i].same(c.legs[i]) }
-                .map { Course(it) }
-                .filter { it.minutes in w.minutes * 0.6..w.minutes * 1.5 && label(it.legs.drop(i)) != mine && it.scenes.isNotEmpty() }
+            val alt = pool.courses.asSequence()
+                .filter { it.legs.size > i && head.indices.all { k -> it.legs[k].same(head[k]) } && !it.legs[i].same(c.legs[i]) }
+                .filter { it.minutes in w.minutes * 0.6..w.minutes * 1.5 && label(it.legs.drop(i)) != mine }
                 .maxByOrNull { score(it, w, taste) } ?: continue
             val planned = Choice(mine, c.legs.drop(i))
             val other = Choice(label(alt.legs.drop(i)), alt.legs.drop(i))
@@ -156,7 +191,7 @@ object Composer {
     // 갈라진 뒤 길의 성격. 시내가 아닌 첫 태그
     private fun label(tail: List<Leg>): String {
         for (l in tail.take(2)) {
-            val t = listOf(Tag.LAKE, Tag.SEA, Tag.MOUNTAIN).firstOrNull { it in l.edge.tags }
+            val t = listOf(Tag.LAKE, Tag.SEA, Tag.RIVER, Tag.MOUNTAIN).firstOrNull { it in l.edge.tags }
             if (t != null) return t.word
         }
         return Tag.CITY.word

@@ -1,0 +1,219 @@
+{
+ "id": "gangneung",
+ "name": "강릉",
+ "prefix": "gn",
+ "nodes": [
+  {
+   "id": "station",
+   "name": "강릉역",
+   "lat": 37.7637,
+   "lon": 128.8996
+  },
+  {
+   "id": "ojuk",
+   "name": "오죽헌",
+   "lat": 37.7792,
+   "lon": 128.8786
+  },
+  {
+   "id": "lake",
+   "name": "경포호",
+   "lat": 37.7955,
+   "lon": 128.902
+  },
+  {
+   "id": "gbeach",
+   "name": "경포해변",
+   "lat": 37.8055,
+   "lon": 128.9078
+  },
+  {
+   "id": "sacheon",
+   "name": "사천진해변",
+   "lat": 37.841,
+   "lon": 128.877
+  },
+  {
+   "id": "yeongok",
+   "name": "연곡",
+   "lat": 37.8606,
+   "lon": 128.8402
+  },
+  {
+   "id": "anmok",
+   "name": "안목해변",
+   "lat": 37.7722,
+   "lon": 128.9476
+  },
+  {
+   "id": "namhang",
+   "name": "남항진",
+   "lat": 37.7699,
+   "lon": 128.9512
+  },
+  {
+   "id": "jdj",
+   "name": "정동진",
+   "lat": 37.6912,
+   "lon": 129.0341
+  },
+  {
+   "id": "simgok",
+   "name": "심곡항",
+   "lat": 37.6516,
+   "lon": 129.045
+  },
+  {
+   "id": "seongsan",
+   "name": "대관령 옛길 입구",
+   "lat": 37.7158,
+   "lon": 128.8296
+  },
+  {
+   "id": "pass",
+   "name": "대관령 마루",
+   "lat": 37.6876,
+   "lon": 128.7525
+  },
+  {
+   "id": "anin",
+   "name": "안인진",
+   "lat": 37.7277,
+   "lon": 128.9889
+  },
+  {
+   "id": "jumunjin",
+   "name": "주문진항",
+   "lat": 37.8919,
+   "lon": 128.8301
+  },
+  {
+   "id": "sogeumgang",
+   "name": "소금강",
+   "lat": 37.816,
+   "lon": 128.7067
+  },
+  {
+   "id": "okgye",
+   "name": "옥계해변",
+   "lat": 37.6303,
+   "lon": 129.0484
+  }
+ ],
+ "links": {
+  "explicit": [
+   [
+    "station",
+    "ojuk"
+   ],
+   [
+    "station",
+    "lake"
+   ],
+   [
+    "ojuk",
+    "lake"
+   ],
+   [
+    "lake",
+    "gbeach"
+   ],
+   [
+    "gbeach",
+    "sacheon"
+   ],
+   [
+    "sacheon",
+    "yeongok"
+   ],
+   [
+    "yeongok",
+    "ojuk"
+   ],
+   [
+    "gbeach",
+    "anmok"
+   ],
+   [
+    "station",
+    "anmok"
+   ],
+   [
+    "anmok",
+    "namhang"
+   ],
+   [
+    "namhang",
+    "jdj"
+   ],
+   [
+    "jdj",
+    "simgok"
+   ],
+   [
+    "simgok",
+    "station"
+   ],
+   [
+    "jdj",
+    "station"
+   ],
+   [
+    "station",
+    "seongsan"
+   ],
+   [
+    "seongsan",
+    "pass"
+   ],
+   [
+    "pass",
+    "station"
+   ],
+   [
+    "seongsan",
+    "ojuk"
+   ],
+   [
+    "sacheon",
+    "seongsan"
+   ],
+   [
+    "namhang",
+    "anin"
+   ],
+   [
+    "anin",
+    "jdj"
+   ],
+   [
+    "station",
+    "anin"
+   ],
+   [
+    "yeongok",
+    "jumunjin"
+   ],
+   [
+    "jumunjin",
+    "sacheon"
+   ],
+   [
+    "yeongok",
+    "sogeumgang"
+   ],
+   [
+    "sogeumgang",
+    "ojuk"
+   ],
+   [
+    "simgok",
+    "okgye"
+   ],
+   [
+    "okgye",
+    "station"
+   ]
+  ]
+ }
+}

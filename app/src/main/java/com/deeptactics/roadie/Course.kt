@@ -2,8 +2,8 @@ package com.deeptactics.roadie
 
 // 코스 위의 도로 조각 하나. fromKm은 코스 시작 기준 거리
 class Leg(val edge: Edge, val reversed: Boolean, val fromKm: Double) {
-    val from get() = RoadMap.node(if (reversed) edge.b else edge.a)
-    val to get() = RoadMap.node(if (reversed) edge.a else edge.b)
+    val from get() = if (reversed) edge.b else edge.a
+    val to get() = if (reversed) edge.a else edge.b
     val toKm get() = fromKm + edge.km
     val climb get() = if (reversed) -edge.climb else edge.climb
 
@@ -39,6 +39,8 @@ class Course(val legs: List<Leg>, val segments: List<Segment> = legs.map { Segme
     val curves get() = legs.sumOf { it.edge.curves }
     val id get() = legs.joinToString("-") { it.to.id }
     val start get() = legs.first().from
+    // 지도 데이터 없이 추정한 연결 구간이 전체에서 차지하는 비율
+    val connectorShare get() = legs.filter { it.edge.connector }.sumOf { it.edge.km } / km
 
     // 장면끼리 너무 붙으면 음악이 못 따라간다. 1.2km 안쪽은 뒤엣것을 뺀다.
     // 클라이맥스가 너무 잦으면 무뎌지니 인상적인 것부터 MAX_SCENES개만
@@ -57,7 +59,7 @@ class Course(val legs: List<Leg>, val segments: List<Segment> = legs.map { Segme
 
     val name: String
         get() {
-            val stops = legs.map { it.to }.filter { it.id != RoadMap.HOME }
+            val stops = legs.map { it.to }.filter { it.id != start.id }
             // 처음 들르는 곳과 가장 멀리 가는 곳
             val home = start
             val far = stops.maxByOrNull { (it.lat - home.lat) * (it.lat - home.lat) + (it.lon - home.lon) * (it.lon - home.lon) }
@@ -91,6 +93,7 @@ class Course(val legs: List<Leg>, val segments: List<Segment> = legs.map { Segme
     fun share(tag: Tag) = when (tag) {
         Tag.SEA -> legs.sumOf { it.edge.km * it.edge.sea } / km
         Tag.LAKE -> legs.sumOf { it.edge.km * it.edge.lake } / km
+        Tag.RIVER -> legs.sumOf { it.edge.km * it.edge.river } / km
         else -> legs.filter { tag in it.edge.tags }.sumOf { it.edge.km } / km
     }
 
@@ -134,7 +137,7 @@ class Course(val legs: List<Leg>, val segments: List<Segment> = legs.map { Segme
         const val JAM_KM = 0.03
         const val MAX_SCENES = 3
         const val MAX_TUNNEL_BUILD_KM = 1.2
-        val PRIORITY = listOf(SceneKind.TUNNEL_EXIT, SceneKind.PASS, SceneKind.SEA, SceneKind.LAKE, SceneKind.VIEW, SceneKind.BRIDGE)
+        val PRIORITY = listOf(SceneKind.TUNNEL_EXIT, SceneKind.PASS, SceneKind.SEA, SceneKind.RIVER, SceneKind.LAKE, SceneKind.VIEW, SceneKind.BRIDGE)
         const val JAM_LEAD_SEC = 12.0
         const val FORK_ASK_SEC = 25.0
         const val SLOW_SEC = 45.0 // 장면 앞 이만큼은 1배속. 대사(35초 전)와 빌드업이 들어간다
