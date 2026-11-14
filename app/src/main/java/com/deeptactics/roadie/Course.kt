@@ -1,5 +1,8 @@
 package com.deeptactics.roadie
 
+import kotlin.math.cos
+
+
 // 코스 위의 도로 조각 하나. fromKm은 코스 시작 기준 거리
 class Leg(val edge: Edge, val reversed: Boolean, val fromKm: Double) {
     val from get() = if (reversed) edge.b else edge.a
@@ -16,7 +19,79 @@ class Leg(val edge: Edge, val reversed: Boolean, val fromKm: Double) {
     }
 
     fun same(o: Leg) = edge === o.edge && reversed == o.reversed
+
+    // 달리는 방향으로 놓은 도로 모양 [lat, lon, ...]. 모양이 없으면(연결 구간) 두 지점을 곧게 잇는다
+    fun shape(): DoubleArray {
+        val s = edge.shape ?: return doubleArrayOf(from.lat, from.lon, to.lat, to.lon)
+        if (!reversed) return s
+        val r = DoubleArray(s.size)
+        for (i in 0 until s.size / 2) {
+            r[i * 2] = s[s.size - 2 - i * 2]
+            r[i * 2 + 1] = s[s.size - 1 - i * 2]
+        }
+        return r
+    }
 }
+
+// 코스 전체 도로 모양. 조각마다 모양 길이를 코스 거리(km)에 맞춰 늘이거나 줄여서 km로 좌표를 찾는다
+class Track(legs: List<Leg>) {
+    val lat: DoubleArray
+    val lon: DoubleArray
+    val km: DoubleArray
+
+    init {
+        val la = ArrayList<Double>()
+        val lo = ArrayList<Double>()
+        val k = ArrayList<Double>()
+        for (l in legs) {
+            val s = l.shape()
+            val n = s.size / 2
+            val cum = DoubleArray(n)
+            for (i in 1 until n) cum[i] = cum[i - 1] + Node("", "", s[i * 2 - 2], s[i * 2 - 1]).km(Node("", "", s[i * 2], s[i * 2 + 1]))
+            val total = cum[n - 1].takeIf { it > 0 } ?: 1.0
+            for (i in (if (la.isEmpty()) 0 else 1) until n) {
+                // 조각 끝에서 골목으로 들어갔다가 다음 조각이 같은 길로 되돌아 나오면, 되돌아가는 만큼 지운다(지도에서 지그재그로 보임).
+                // 이음매에서 300m까지만. 그보다 긴 왕복은 실제로 들어갔다 나오는 길이다
+                while (cum[i] < 0.3 && la.size >= 2 && onSegment(s[i * 2], s[i * 2 + 1], la[la.size - 2], lo[lo.size - 2], la.last(), lo.last())) {
+                    la.removeAt(la.lastIndex); lo.removeAt(lo.lastIndex); k.removeAt(k.lastIndex)
+                }
+                la += s[i * 2]
+                lo += s[i * 2 + 1]
+                k += l.fromKm + cum[i] / total * l.edge.km
+            }
+        }
+        lat = la.toDoubleArray()
+        lon = lo.toDoubleArray()
+        km = k.toDoubleArray()
+    }
+
+    // p가 a→b 선분 위(30m 안, 양 끝 사이)에 있나. 있으면 지금 지나온 길을 거꾸로 가는 중이다
+    private fun onSegment(pla: Double, plo: Double, ala: Double, alo: Double, bla: Double, blo: Double): Boolean {
+        val c = cos(Math.toRadians(ala))
+        val bx = (blo - alo) * c * 111.32
+        val by = (bla - ala) * 110.54
+        val px = (plo - alo) * c * 111.32
+        val py = (pla - ala) * 110.54
+        val len2 = bx * bx + by * by
+        if (len2 < 1e-9) return false
+        val t = (px * bx + py * by) / len2
+        if (t < 0.0 || t > 1.0) return false
+        val dx = px - t * bx
+        val dy = py - t * by
+        return dx * dx + dy * dy < 0.03 * 0.03
+    }
+
+    // km 지점의 (lat, lon)
+    fun at(x: Double): Pair<Double, Double> {
+        var i = km.indexOfFirst { it >= x }
+        if (i <= 0) return if (i == 0) lat[0] to lon[0] else lat.last() to lon.last()
+        val f = ((x - km[i - 1]) / (km[i] - km[i - 1]).coerceAtLeast(1e-9)).coerceIn(0.0, 1.0)
+        return lat[i - 1] + (lat[i] - lat[i - 1]) * f to lon[i - 1] + (lon[i] - lon[i - 1]) * f
+    }
+}
+
+// 내비 경유지. km는 코스 위 위치
+class Waypoint(val name: String, val lat: Double, val lon: Double, val km: Double)
 
 // km: 코스 시작 기준 거리, line: 장면 직전에 반려차가 하는 말
 // tunnelFrom: 터널 출구 장면이면 터널이 시작되는 지점. 터널 안에서 빌드업을 쌓는다
@@ -70,13 +145,19 @@ class Course(val legs: List<Leg>, val segments: List<Segment> = legs.map { Segme
     // 지도에 그릴 점들
     val points get() = listOf(start) + legs.map { it.to }
 
-    // 내비 경유지는 둘까지. 코스를 셋으로 나눈 지점 근처를 고른다
-    val waypoints: List<Node>
-        get() {
-            val stops = legs.dropLast(1).map { it.to }
-            if (stops.size <= 2) return stops
-            return listOf(stops[stops.size / 3], stops[stops.size * 2 / 3]).distinct()
-        }
+    val track by lazy { Track(legs) }
+
+    // 내비 경유지(둘까지). 내비가 우리 코스를 가장 비슷하게 따라오도록 Composer.waypoints가 골라 넣는다.
+    // 아직 안 골랐으면 코스를 셋으로 나눈 지점 근처 지점
+    var navWaypoints: List<Waypoint>? = null
+    val waypoints: List<Waypoint>
+        get() = navWaypoints ?: legs.dropLast(1).map { Waypoint(it.to.name, it.to.lat, it.to.lon, it.toKm) }
+            .let { if (it.size <= 2) it else listOf(it[it.size / 3], it[it.size * 2 / 3]) }
+
+    // 실제 주행에서 내비가 알려 준 경유지까지 남은 거리로 코스 위 위치를 다시 잡는다.
+    // 멀리서는 내비 길과 우리 길이 다를 수 있어서 SYNC_M 안쪽일 때만
+    fun syncKm(name: String, remainM: Int): Double? =
+        waypoints.firstOrNull { it.name == name }?.takeIf { remainM in 0..SYNC_M }?.let { (it.km - remainM / 1000.0).coerceAtLeast(0.0) }
 
     // 시뮬레이션이 미리 1배로 늦출 지점과 그 앞 거리
     val slowPoints: List<Pair<Double, Double>>
@@ -190,6 +271,7 @@ class Course(val legs: List<Leg>, val segments: List<Segment> = legs.map { Segme
 
     companion object {
         const val JAM_KM = 0.03
+        const val SYNC_M = 3000
         const val CONGEST_KMH = 12.0
         const val CONGEST_LATE_MIN = 10.0
         const val RAMP_IN_KM = 0.5

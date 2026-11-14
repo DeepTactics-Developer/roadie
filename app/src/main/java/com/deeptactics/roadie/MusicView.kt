@@ -13,21 +13,23 @@ class MusicView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
 
     private val shown = FloatArray(5)
     private val p = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val colors = intArrayOf(0xFF7986CB.toInt(), 0xFF4DB6AC.toInt(), 0xFF4FC3F7.toInt(), 0xFFFFCA28.toInt(), 0xFFFF7043.toInt())
+    // 패드, 베이스, 아르페지오, 리드, 드럼. 종이 바탕에 맞춘 차분한 색
+    private val colors = intArrayOf(0xFF6F7C8A.toInt(), 0xFF24968A.toInt(), 0xFF3A86C8.toInt(), 0xFFC98A00.toInt(), 0xFFE8572A.toInt())
 
     override fun onDraw(canvas: Canvas) {
         val n = 5
-        val gap = width * 0.03f
+        val gap = width * 0.08f
         val bw = (width - gap * (n - 1)) / n
         val pulse = 1f - 0.18f * beat
         for (i in 0 until n) {
             shown[i] += (levels[i] - shown[i]) * 0.35f
-            val h = maxOf(height * shown[i] * pulse, bw * 0.3f)
+            val h = maxOf(height * shown[i] * pulse, height * 0.08f)
             val x = i * (bw + gap)
-            p.color = colors[i] and 0x33FFFFFF
-            canvas.drawRoundRect(x, 0f, x + bw, height.toFloat(), bw / 2, bw / 2, p)
+            val r = minOf(bw, height.toFloat()) * 0.1f
+            p.color = 0xFFEEEAE1.toInt()
+            canvas.drawRoundRect(x, 0f, x + bw, height.toFloat(), r, r, p)
             p.color = colors[i]
-            canvas.drawRoundRect(x, height - h, x + bw, height.toFloat(), bw / 2, bw / 2, p)
+            canvas.drawRoundRect(x, height - h, x + bw, height.toFloat(), r, r, p)
         }
     }
 }

@@ -18,6 +18,7 @@ import android.os.IBinder
 import android.os.Looper
 import android.os.SystemClock
 import android.util.Log
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 // 주행의 본체. 화면이 내비에 가려지거나 내려가도 음악, 음성, 갈림길 질문이 이어지게 서비스로 돌린다.
@@ -53,6 +54,7 @@ class DriveService : Service() {
     private var lastPart = Part.IDLE
     private var lastDrop: Scene? = null
     private var notifiedAt = 0L
+    private var polledAt = 0L
 
     private val tick = object : Runnable {
         override fun run() {
@@ -117,8 +119,10 @@ class DriveService : Service() {
     // 코스를 내비 경유지 경로로 넘긴다. 출발지로 돌아오는 순환이라 목적지는 출발지
     private fun routeTo(c: Course) = RoadieApp.naviCall(NAVI_VOICE_MS) {
         val home = c.start
-        val wps = c.waypoints.mapIndexed { i, n ->
-            RequestWaypointInfo(n.lat, n.lon, n.name, if (i == 0) WaypointIndex.FIRST else WaypointIndex.SECOND, "", "0", n.name, "")
+        if (c.navWaypoints == null) c.navWaypoints = Composer.waypoints(RoadieApp.graph, c)
+        Log.d(MainActivity.TAG, "경유지 ${c.waypoints.joinToString { "${it.name} %.1fkm".format(it.km) }}")
+        val wps = c.waypoints.mapIndexed { i, w ->
+            RequestWaypointInfo(w.lat, w.lon, w.name, if (i == 0) WaypointIndex.FIRST else WaypointIndex.SECOND, "", "0", w.name, "")
         }
         // 목적지가 출발 위치와 같으면 내비가 마지막 구간을 없애 버려서, 100m쯤 옆으로 비켜 둔다
         val dest = RouteInfo(
@@ -162,7 +166,7 @@ class DriveService : Service() {
             km = src.km
             speed = src.speedKmh
             part = a.part
-            targetName = target?.name ?: "${c.start.name}으로"
+            targetName = target?.name ?: "출발한 곳으로"
             remainKm = ((target?.km ?: c.km) - src.km).coerceAtLeast(0.0)
             levels = m.levels()
             beat = (now % (Arranger.BAR / 4)).toFloat() / (Arranger.BAR / 4)
@@ -209,6 +213,12 @@ class DriveService : Service() {
         }
         // 질문하거나 이야기하는 동안 시뮬레이션은 1배로. 대답하기 전에 정체가 끝나거나 이야기 도중 장소를 지나치지 않게
         (src as? SimulatedDrive)?.hold = (Session.ask != null && detour != null) || telling
+
+        // 실제 주행이면 내비에 경유지까지 남은 거리를 물어 위치를 맞춘다(답은 onWaypointInfo로 온다)
+        if (!simulate && t - polledAt > POLL_MS) {
+            polledAt = t
+            if (RoadieApp.naviReady) runCatching { RoadieApp.navi.getWaypointInfo() }
+        }
 
         if (t - notifiedAt > 4000) {
             notifiedAt = t
@@ -303,6 +313,28 @@ class DriveService : Service() {
         (src as? SimulatedDrive)?.course = next
         arranger?.replace(next.scenes, src.km)
         routeTo(next)
+    }
+
+    // 내비가 알려 준 남은 거리(다음 경유지 하나만 본다)
+    fun onWaypointInfo(name: String, remainM: Int) {
+        val c = Session.course ?: return
+        val k = c.syncKm(name, remainM) ?: return
+        moveTo(k, "남은 거리 $name ${remainM}m")
+    }
+
+    fun onWaypointArrived(name: String) {
+        val c = Session.course ?: return
+        c.waypoints.firstOrNull { it.name == name }?.let { moveTo(it.km, "경유지 도착 $name") }
+    }
+
+    private fun moveTo(k: Double, why: String) {
+        val src = source ?: return
+        if (simulate || abs(k - src.km) < 0.05) return
+        Log.d(MainActivity.TAG, "위치 보정 %.2f → %.2f km (%s)".format(src.km, k, why))
+        val jump = abs(k - src.km)
+        src.sync(k)
+        // 크게 건너뛰면 다음 장면을 다시 고른다
+        if (jump >= 0.2) Session.course?.let { arranger?.replace(it.scenes, k) }
     }
 
     private fun onApproach(scene: Scene) {
@@ -425,6 +457,7 @@ class DriveService : Service() {
         // 내비 안내 음성은 요청 뒤 늦으면 6초쯤 지나서 나온다
         const val NAVI_VOICE_MS = 7000L
         const val ASK_WAIT_MS = 16000L
+        const val POLL_MS = 3000L
         val QUIET = setOf(Part.IDLE, Part.CRUISE_A, Part.CRUISE_B)
         const val LATE_ASK_SEC = 240.0
         const val HERE_SHIFT = 0.0015

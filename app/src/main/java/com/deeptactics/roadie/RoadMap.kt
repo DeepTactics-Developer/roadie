@@ -52,7 +52,36 @@ class Edge(
     val lake: Double = 0.0, // 호숫가 비율
     val river: Double = 0.0, // 강변 비율
     val connector: Boolean = false, // 지금 위치와 지점을 잇는 구간. 지도 데이터가 없어 추정값이다
+    val shape: DoubleArray? = null, // a→b 도로 모양 [lat, lon, lat, lon, ...]. 연결 구간은 없다
 )
+
+// 구글 폴리라인 형식(소수 5자리)을 푼다. tools/geo.py의 encode와 짝
+object Polyline {
+    fun decode(s: String): DoubleArray {
+        val out = ArrayList<Double>()
+        var i = 0
+        var lat = 0
+        var lon = 0
+        fun next(): Int {
+            var shift = 0
+            var v = 0
+            while (true) {
+                val b = s[i++].code - 63
+                v = v or ((b and 0x1f) shl shift)
+                shift += 5
+                if (b < 0x20) break
+            }
+            return if (v and 1 != 0) (v shr 1).inv() else v shr 1
+        }
+        while (i < s.length) {
+            lat += next()
+            lon += next()
+            out += lat / 1e5
+            out += lon / 1e5
+        }
+        return out.toDoubleArray()
+    }
+}
 
 class Graph(nodes: Collection<Node>, val edges: List<Edge>) {
     val nodes: Map<String, Node> = nodes.associateBy { it.id }
@@ -93,6 +122,7 @@ object Roads {
             Edge(
                 byId.getValue(e.getString("a")), byId.getValue(e.getString("b")), e.getString("road"), e.getDouble("km"), e.getDouble("kmh"),
                 e.getInt("sig"), e.getInt("cur"), e.getInt("climb"), tags, feats, e.optDouble("sea", 0.0), e.optDouble("lake", 0.0), e.optDouble("river", 0.0),
+                shape = e.optString("g").takeIf { it.isNotEmpty() }?.let { Polyline.decode(it) },
             )
         }
         return nodes to edges

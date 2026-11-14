@@ -12,6 +12,9 @@ interface DriveSource {
 
     // 앞으로 달릴 모습을 아는 경우에만 targetKm까지 걸릴 초를 준다
     fun etaSec(targetKm: Double): Double? = null
+
+    // 내비가 알려 준 위치로 코스 위 위치를 다시 잡는다. 실제 주행에서만 쓴다
+    fun sync(km: Double) {}
 }
 
 // 코스 구간 속도대로 가짜 주행. warp배로 빨리 감다가 장면 앞에서는 1배로 늦춘다.

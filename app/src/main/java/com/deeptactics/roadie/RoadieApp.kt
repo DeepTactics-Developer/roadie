@@ -3,6 +3,8 @@ package com.deeptactics.roadie
 import ai.pleos.playground.navi.constants.NaviErrorCode
 import ai.pleos.playground.navi.data.CurrentLocationInfo
 import ai.pleos.playground.navi.data.RouteStartInfo
+import ai.pleos.playground.navi.data.WaypointArrivedInfo
+import ai.pleos.playground.navi.data.WaypointInfo
 import ai.pleos.playground.navi.helper.NaviHelper
 import ai.pleos.playground.navi.helper.listener.NaviHelperEventListener
 import android.app.Application
@@ -28,6 +30,16 @@ class RoadieApp : Application() {
             navi.addListener(object : NaviHelperEventListener {
                 override fun onRouteStarted(routeStartInfo: RouteStartInfo) = Log.d(MainActivity.TAG, "navi 경로 시작 $routeStartInfo").let {}
                 override fun onError(errorCode: NaviErrorCode) = Log.w(MainActivity.TAG, "navi 오류 $errorCode").let {}
+                // 실제 주행에서 위치를 맞추는 데 쓴다. 첫 번째(다음) 경유지만 본다
+                override fun onWayPointInfo(list: List<WaypointInfo>) {
+                    val w = list.firstOrNull() ?: return
+                    main.post { DriveService.instance?.onWaypointInfo(w.name, w.remainDistance) }
+                }
+
+                override fun onWayPointArrived(info: WaypointArrivedInfo) {
+                    main.post { DriveService.instance?.onWaypointArrived(info.name) }
+                }
+
                 override fun onCurrentLocationInfo(info: CurrentLocationInfo) {
                     Log.d(MainActivity.TAG, "지금 위치 ${info.latitude},${info.longitude} ${info.address}")
                     main.post { setHere(info.latitude, info.longitude, info.address) }
@@ -73,6 +85,7 @@ class RoadieApp : Application() {
             val key = "%.1f,%.1f".format(here.node.lat, here.node.lon)
             if (key == graphKey) return
             graphKey = key
+            runCatching { BaseMap.load(context, here.node.lat, here.node.lon) }.onFailure { Log.w(MainActivity.TAG, "배경 지도 읽기 실패", it) }
             graph = runCatching { Roads.load(context, here.node.lat, here.node.lon) }.onFailure { Log.w(MainActivity.TAG, "지도 읽기 실패", it) }.getOrDefault(Graph.EMPTY)
             Log.d(MainActivity.TAG, "지도 지점 ${graph.nodes.size}곳, 연결 ${graph.edges.size}개")
         }

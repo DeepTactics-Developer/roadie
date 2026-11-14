@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 왼쪽 굵은 선 하나로 말하는 글을 구분한다 -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:gravity="start" android:width="4dp"><shape><solid android:color="@color/accent" /></shape></item>
+</layer-list>

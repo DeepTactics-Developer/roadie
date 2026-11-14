@@ -2,11 +2,9 @@ package com.deeptactics.roadie
 
 import android.content.Context
 import android.graphics.Canvas
-import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RectF
-import android.graphics.Shader
 import android.os.SystemClock
 import android.util.AttributeSet
 import android.view.View
@@ -58,11 +56,11 @@ class CarFace(context: Context, attrs: AttributeSet?) : View(context, attrs) {
 
         // 그림자
         p.shader = null
-        p.color = 0x55000000
+        p.color = 0x22000000
         canvas.drawOval(left + s * 0.05f, h * 0.9f + bounce, right - s * 0.05f, h * 0.97f + bounce, p)
 
         // 바퀴
-        p.color = 0xFF0D1218.toInt()
+        p.color = INK
         r.set(left + s * 0.08f, bodyBottom - s * 0.06f, left + s * 0.3f, bodyBottom + s * 0.08f)
         canvas.drawRoundRect(r, s * 0.05f, s * 0.05f, p)
         r.set(right - s * 0.3f, bodyBottom - s * 0.06f, right - s * 0.08f, bodyBottom + s * 0.08f)
@@ -75,7 +73,7 @@ class CarFace(context: Context, attrs: AttributeSet?) : View(context, attrs) {
         path.quadTo(cx, h * 0.12f, right - s * 0.3f, h * 0.16f)
         path.lineTo(right - s * 0.2f, bodyTop + s * 0.02f)
         path.close()
-        p.color = 0xFF2E7FB0.toInt()
+        p.color = ROOF
         canvas.drawPath(path, p)
         path.reset()
         path.moveTo(left + s * 0.26f, bodyTop)
@@ -83,21 +81,20 @@ class CarFace(context: Context, attrs: AttributeSet?) : View(context, attrs) {
         path.quadTo(cx, h * 0.165f, right - s * 0.34f, h * 0.2f)
         path.lineTo(right - s * 0.26f, bodyTop)
         path.close()
-        p.color = 0xFF16273A.toInt()
+        p.color = GLASS
         canvas.drawPath(path, p)
         stroke.color = 0x40FFFFFF
         stroke.strokeWidth = s * 0.02f
         canvas.drawLine(left + s * 0.4f, h * 0.24f, left + s * 0.33f, bodyTop - s * 0.03f, stroke)
 
         // 몸통
-        p.shader = LinearGradient(0f, bodyTop, 0f, bodyBottom, 0xFF5CCBFA.toInt(), 0xFF2B8FC4.toInt(), Shader.TileMode.CLAMP)
+        p.color = BODY
         r.set(left, bodyTop, right, bodyBottom)
         canvas.drawRoundRect(r, s * 0.14f, s * 0.14f, p)
-        p.shader = null
 
         // 볼
         if (mood == Mood.HAPPY || mood == Mood.EXCITED) {
-            p.color = 0xAAFF8A80.toInt()
+            p.color = 0xCCF9B39B.toInt()
             canvas.drawCircle(left + s * 0.14f, bodyTop + s * 0.25f, s * 0.06f, p)
             canvas.drawCircle(right - s * 0.14f, bodyTop + s * 0.25f, s * 0.06f, p)
         }
@@ -131,13 +128,13 @@ class CarFace(context: Context, attrs: AttributeSet?) : View(context, attrs) {
                         Mood.CURIOUS -> er * 0.3f to 0f
                         else -> sin(t * 0.7f) * er * 0.25f to er * 0.1f
                     }
-                    p.color = 0xFF10202E.toInt()
+                    p.color = INK
                     canvas.drawCircle(ex + look.first, eyeY + look.second, er * 0.5f, p)
                     p.color = 0xFFFFFFFF.toInt()
                     canvas.drawCircle(ex + look.first + er * 0.18f, eyeY + look.second - er * 0.18f, er * 0.16f, p)
                     if (mood == Mood.SLEEPY) {
                         // 눈꺼풀
-                        p.color = 0xFF4DB8EA.toInt()
+                        p.color = BODY
                         canvas.drawRect(ex - er - 2, eyeY - er - 2, ex + er + 2, eyeY + er * 0.1f, p)
                     }
                 }
@@ -149,21 +146,21 @@ class CarFace(context: Context, attrs: AttributeSet?) : View(context, attrs) {
         val mouthW = s * if (mood == Mood.HAPPY || mood == Mood.EXCITED) 0.36f else 0.3f
         val mouthY = bodyTop + s * 0.32f
         val mouthH = s * (0.035f + 0.09f * open)
-        p.color = 0xFF10202E.toInt()
+        p.color = INK
         r.set(cx - mouthW / 2, mouthY - mouthH / 2, cx + mouthW / 2, mouthY + mouthH / 2)
         canvas.drawRoundRect(r, mouthH / 2, mouthH / 2, p)
         if (!(talking || talkingOf?.invoke() == true) && (mood == Mood.HAPPY || mood == Mood.EXCITED || mood == Mood.CALM)) {
-            stroke.color = 0xFF10202E.toInt()
+            stroke.color = INK
             stroke.strokeWidth = s * 0.022f
             r.set(cx - mouthW / 2, mouthY - s * 0.08f, cx + mouthW / 2, mouthY + s * 0.04f)
             canvas.drawArc(r, 20f, 140f, false, stroke)
         }
 
         // 번호판 자리에 이름
-        p.color = 0xFFEAF6FD.toInt()
+        p.color = 0xFFFFFFFF.toInt()
         r.set(cx - s * 0.13f, bodyBottom - s * 0.11f, cx + s * 0.13f, bodyBottom - s * 0.03f)
         canvas.drawRoundRect(r, s * 0.015f, s * 0.015f, p)
-        p.color = 0xFF10202E.toInt()
+        p.color = INK
         p.textSize = s * 0.055f
         p.textAlign = Paint.Align.CENTER
         p.isFakeBoldText = true
@@ -171,7 +168,7 @@ class CarFace(context: Context, attrs: AttributeSet?) : View(context, attrs) {
 
         // 듣는 중이면 옆으로 소리 물결
         if (mood == Mood.LISTENING) {
-            stroke.color = 0xAAFFB74D.toInt()
+            stroke.color = 0xAA6B655B.toInt()
             stroke.strokeWidth = s * 0.02f
             for (k in 0 until 3) {
                 val rr = s * (0.1f + k * 0.07f) + (t * 40f % 20f)
@@ -183,19 +180,26 @@ class CarFace(context: Context, attrs: AttributeSet?) : View(context, attrs) {
         }
         // 신나면 반짝이
         if (mood == Mood.EXCITED) {
-            p.color = 0xFFFFE082.toInt()
+            p.color = 0xFFE0A100.toInt()
             for (k in 0 until 4) {
                 val a = t * 2 + k * 1.57f
                 star(canvas, cx + sin(a) * s * 0.75f, h * 0.3f + sin(a * 1.3f) * s * 0.2f, s * 0.04f * (0.6f + 0.4f * abs(sin(t * 4 + k))))
             }
         }
         if (mood == Mood.SLEEPY) {
-            p.color = 0xAAFFFFFF.toInt()
+            p.color = 0xAA6B655B.toInt()
             p.textSize = s * (0.08f + 0.02f * sin(t))
             canvas.drawText("z", right - s * 0.05f, h * 0.18f - (t * 10f % 20f), p)
         }
         canvas.restore()
         postInvalidateOnAnimation()
+    }
+
+    companion object {
+        const val BODY = 0xFFE8572A.toInt()
+        const val ROOF = 0xFFB9431F.toInt()
+        const val GLASS = 0xFF2A2622.toInt()
+        const val INK = 0xFF1E1C19.toInt()
     }
 
     private fun star(canvas: Canvas, x: Float, y: Float, k: Float) {

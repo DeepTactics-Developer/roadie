@@ -33,6 +33,10 @@ class CarDrive(context: Context) : DriveSource {
         km += speedKmh / 3600.0 * dt
     }
 
+    override fun sync(km: Double) {
+        this.km = km
+    }
+
     override fun stop() {
         props.unregisterCallback(callback)
         car.disconnect()

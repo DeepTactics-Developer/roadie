@@ -24,6 +24,8 @@ import zlib
 
 import numpy as np
 
+from geo import despur, encode, simplify
+
 sys.stdout.reconfigure(encoding='utf-8')
 HERE = os.path.dirname(os.path.abspath(__file__))
 CACHE = os.path.join(HERE, '.cache')
@@ -454,8 +456,10 @@ def build_edge(a, b, ids, osm, places):
     if not tags:
         tags.append('MOUNTAIN' if nsig / (L / 1000) < 0.3 else 'CITY')
 
+    # 지도에 그리고 장면 좌표를 낼 도로 모양. 골목으로 갔다 돌아오는 작은 고리와 8m 안쪽 굴곡은 버린다
+    g = encode(simplify(despur(ll, xy), 8.0, xy))
     return dict(a=ids[a['id']], b=ids[b['id']], road=road, km=round(L / 1000, 3), kmh=float(kmh), signals=nsig, curves=ncurve,
-                climb=climb, tags=tags, feats=feats, sea=round(share(cst_m), 2), lake=round(share(lak_m), 2), river=round(share(riv_m), 2))
+                climb=climb, tags=tags, feats=feats, sea=round(share(cst_m), 2), lake=round(share(lak_m), 2), river=round(share(riv_m), 2), g=g)
 
 
 # 지점과 연결 -------------------------------------------------------------------
@@ -549,7 +553,7 @@ def build_region(path):
     out = dict(region=cfg['id'], name=cfg['name'],
                nodes=[[ids[n['id']], n['name'], n['lat'], n['lon']] for n in nodes],
                edges=[dict(a=e['a'], b=e['b'], road=e['road'], km=e['km'], kmh=e['kmh'], sig=e['signals'], cur=e['curves'], climb=e['climb'],
-                           tags=e['tags'], sea=e['sea'], lake=e['lake'], river=e['river'],
+                           tags=e['tags'], sea=e['sea'], lake=e['lake'], river=e['river'], g=e['g'],
                            f=[[round(f['at'] / 1000, 3), f['kind'], f['name'], f['line'], round(f['len'] / 1000, 3),
                                {'fwd': 'f', 'rev': 'r'}.get(f['one'], '')] for f in sorted(e['feats'], key=lambda f: f['at'])]) for e in edges])
     os.makedirs(OUT, exist_ok=True)

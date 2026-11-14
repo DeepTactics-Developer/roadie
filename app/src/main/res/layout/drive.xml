@@ -2,32 +2,94 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/bg_screen">
+    android:background="@color/paper">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:orientation="horizontal"
-        android:padding="40dp">
+        android:orientation="horizontal">
 
+        <!-- 왼쪽: 다음 장면과 로디. 운전 중이라 글씨는 크게, 정보는 적게 -->
         <LinearLayout
-            android:layout_width="420dp"
+            android:layout_width="560dp"
             android:layout_height="match_parent"
-            android:orientation="vertical">
-
-            <com.deeptactics.roadie.CarFace
-                android:id="@+id/face"
-                android:layout_width="match_parent"
-                android:layout_height="300dp" />
+            android:background="@color/panel"
+            android:orientation="vertical"
+            android:paddingHorizontal="44dp"
+            android:paddingVertical="36dp">
 
             <TextView
-                android:id="@+id/bubble"
+                android:id="@+id/course"
+                style="@style/Label"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:background="@drawable/bg_bubble"
-                android:padding="24dp"
-                android:textColor="@color/text"
-                android:textSize="30sp" />
+                android:ellipsize="end"
+                android:singleLine="true" />
+
+            <TextView
+                style="@style/Label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="32dp"
+                android:text="다음" />
+
+            <TextView
+                android:id="@+id/nextName"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:maxLines="2"
+                android:textColor="@color/ink"
+                android:textSize="40sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/remain"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:textColor="@color/accent"
+                android:textSize="68sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/speed"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@color/ink2"
+                android:textSize="24sp" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginVertical="28dp"
+                android:background="@color/rule" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <com.deeptactics.roadie.CarFace
+                    android:id="@+id/face"
+                    android:layout_width="150dp"
+                    android:layout_height="124dp" />
+
+                <TextView
+                    android:id="@+id/bubble"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="14dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_quote"
+                    android:lineSpacingExtra="5dp"
+                    android:maxLines="5"
+                    android:paddingVertical="4dp"
+                    android:paddingStart="20dp"
+                    android:textColor="@color/ink"
+                    android:textSize="22sp" />
+            </LinearLayout>
 
             <Space
                 android:layout_width="0dp"
@@ -37,94 +99,65 @@
             <com.deeptactics.roadie.MusicView
                 android:id="@+id/music"
                 android:layout_width="match_parent"
-                android:layout_height="150dp" />
+                android:layout_height="84dp" />
 
             <TextView
-                android:id="@+id/speed"
+                android:id="@+id/stop"
+                style="@style/Ghost"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="20dp"
-                android:gravity="center"
-                android:textColor="@color/sub"
-                android:textSize="30sp" />
+                android:layout_height="88dp"
+                android:layout_marginTop="28dp"
+                android:text="그만 달리기"
+                android:textSize="26sp" />
         </LinearLayout>
 
-        <LinearLayout
+        <View
+            android:layout_width="1dp"
+            android:layout_height="match_parent"
+            android:background="@color/rule" />
+
+        <FrameLayout
             android:layout_width="0dp"
             android:layout_height="match_parent"
-            android:layout_marginStart="40dp"
-            android:layout_weight="1"
-            android:orientation="vertical">
+            android:layout_weight="1">
 
-            <LinearLayout
+            <com.deeptactics.roadie.RouteView
+                android:id="@+id/route"
                 android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+
+            <TextView
+                android:id="@+id/popup"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:gravity="bottom"
-                android:orientation="horizontal">
+                android:layout_gravity="center"
+                android:alpha="0"
+                android:shadowColor="#FFFFFFFF"
+                android:shadowRadius="30"
+                android:textColor="@color/ink"
+                android:textSize="72sp"
+                android:textStyle="bold" />
 
-                <TextView
-                    android:id="@+id/nextName"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:textColor="@color/text"
-                    android:textSize="56sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/remain"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textColor="@color/accent"
-                    android:textSize="48sp"
-                    android:textStyle="bold" />
-            </LinearLayout>
-
-            <FrameLayout
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_marginVertical="24dp"
-                android:layout_weight="1"
-                android:background="@drawable/bg_card"
-                android:padding="16dp">
-
-                <com.deeptactics.roadie.RouteView
-                    android:id="@+id/route"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent" />
-            </FrameLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
+            <TextView
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <TextView
-                    android:id="@+id/course"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:textColor="@color/sub"
-                    android:textSize="26sp" />
-
-                <TextView
-                    android:id="@+id/stop"
-                    style="@style/Ghost"
-                    android:layout_width="260dp"
-                    android:layout_height="100dp"
-                    android:text="그만 달리기"
-                    android:textSize="28sp" />
-            </LinearLayout>
-        </LinearLayout>
+                android:layout_gravity="bottom|end"
+                android:background="#B3FFFFFF"
+                android:paddingHorizontal="10dp"
+                android:paddingVertical="4dp"
+                android:text="© OpenStreetMap contributors"
+                android:textColor="@color/ink2"
+                android:textSize="14sp" />
+        </FrameLayout>
     </LinearLayout>
 
-    <!-- 갈림길 선택 -->
+    <!-- 갈림길, 정체 질문 -->
     <LinearLayout
         android:id="@+id/forkPanel"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#D90B0F17"
+        android:background="@drawable/bg_scrim"
+        android:clickable="true"
         android:gravity="center"
         android:orientation="vertical"
         android:visibility="gone">
@@ -133,15 +166,14 @@
             android:id="@+id/forkTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="곧 갈림길"
-            android:textColor="@color/warm"
-            android:textSize="40sp"
+            android:textColor="@color/ink"
+            android:textSize="42sp"
             android:textStyle="bold" />
 
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="40dp"
+            android:layout_marginTop="44dp"
             android:orientation="horizontal">
 
             <TextView
@@ -152,21 +184,23 @@
                 android:clickable="true"
                 android:focusable="true"
                 android:gravity="center"
-                android:textColor="@color/text"
-                android:textSize="52sp"
+                android:padding="16dp"
+                android:textColor="@color/ink"
+                android:textSize="46sp"
                 android:textStyle="bold" />
 
             <TextView
                 android:id="@+id/right"
                 android:layout_width="520dp"
                 android:layout_height="220dp"
-                android:layout_marginStart="48dp"
+                android:layout_marginStart="44dp"
                 android:background="@drawable/bg_choice"
                 android:clickable="true"
                 android:focusable="true"
                 android:gravity="center"
-                android:textColor="@color/text"
-                android:textSize="52sp"
+                android:padding="16dp"
+                android:textColor="@color/ink"
+                android:textSize="46sp"
                 android:textStyle="bold" />
         </LinearLayout>
 
@@ -175,19 +209,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="36dp"
-            android:textColor="@color/sub"
-            android:textSize="28sp" />
+            android:textColor="@color/ink2"
+            android:textSize="26sp" />
     </LinearLayout>
-
-    <TextView
-        android:id="@+id/popup"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:alpha="0"
-        android:shadowColor="#000000"
-        android:shadowRadius="40"
-        android:textColor="@color/text"
-        android:textSize="104sp"
-        android:textStyle="bold" />
 </FrameLayout>

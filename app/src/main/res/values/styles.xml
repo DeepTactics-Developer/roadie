@@ -1,9 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <style name="Roadie" parent="@android:style/Theme.DeviceDefault.Light.NoActionBar">
+        <item name="android:windowBackground">@color/paper</item>
+        <item name="android:colorAccent">@color/accent</item>
+    </style>
+
     <style name="Primary">
         <item name="android:background">@drawable/bg_primary</item>
         <item name="android:gravity">center</item>
-        <item name="android:textColor">@color/bg</item>
+        <item name="android:textColor">#FFFFFF</item>
         <item name="android:textStyle">bold</item>
         <item name="android:clickable">true</item>
         <item name="android:focusable">true</item>
@@ -12,19 +17,27 @@
     <style name="Ghost">
         <item name="android:background">@drawable/bg_ghost</item>
         <item name="android:gravity">center</item>
-        <item name="android:textColor">@color/text</item>
+        <item name="android:textColor">@color/ink</item>
         <item name="android:clickable">true</item>
         <item name="android:focusable">true</item>
     </style>
 
-    <style name="Chip">
-        <item name="android:background">@drawable/bg_chip</item>
-        <item name="android:paddingStart">28dp</item>
-        <item name="android:paddingEnd">28dp</item>
-        <item name="android:paddingTop">14dp</item>
-        <item name="android:paddingBottom">14dp</item>
-        <item name="android:textColor">@color/text</item>
-        <item name="android:textSize">22sp</item>
+    <!-- 작은 글씨 머리말. 자간을 벌려 정보와 구분한다 -->
+    <style name="Label">
+        <item name="android:textColor">@color/ink2</item>
+        <item name="android:textSize">17sp</item>
+        <item name="android:letterSpacing">0.08</item>
+    </style>
+
+    <!-- 홈의 예시 문장 한 줄 -->
+    <style name="Example">
+        <item name="android:background">@drawable/bg_row</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:minHeight">66dp</item>
+        <item name="android:paddingStart">4dp</item>
+        <item name="android:paddingEnd">4dp</item>
+        <item name="android:textColor">@color/ink</item>
+        <item name="android:textSize">23sp</item>
         <item name="android:clickable">true</item>
         <item name="android:focusable">true</item>
     </style>

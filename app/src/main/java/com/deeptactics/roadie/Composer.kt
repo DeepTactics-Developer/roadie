@@ -235,6 +235,76 @@ object Composer {
         return pick.first
     }
 
+    // 내비 경유지 고르기. 내비는 경유지 사이를 자기 최단 경로로 가서, 경유지를 잘못 두면 우리가 고른 길을 건너뛴다.
+    // 조각마다 가운데(장면이 있으면 장면 자리)를 경유지 후보로 두고, 두 개를 골랐을 때 내비가 갈 길을
+    // 우리 지도에서 최단 시간 경로로 흉내 내서 코스와 가장 많이 겹치는 둘을 고른다. 겹침이 같으면 장면 자리를 고른다
+    fun waypoints(g: Graph, c: Course): List<Waypoint> {
+        val legs = c.legs.withIndex().filter { !it.value.edge.connector }
+        if (legs.size < 2 || g.nodes.isEmpty()) return c.waypoints
+        val entry = legs.first().value.from
+        val exit = legs.last().value.to
+        val mine = legs.map { it.value.edge }.toSet()
+        val routes = HashMap<String, Map<String, Pair<Edge, Boolean>>>()
+        fun prevFrom(id: String) = routes.getOrPut(id) { dijkstra(g, id) }
+        // a에서 b까지 최단 경로의 조각들
+        fun path(a: Node, b: Node): List<Edge> {
+            val prev = prevFrom(a.id)
+            val out = ArrayList<Edge>()
+            var at = b.id
+            while (at != a.id) {
+                val (e, rev) = prev[at] ?: return out
+                out += e
+                at = if (rev) e.b.id else e.a.id
+            }
+            return out
+        }
+        fun overlap(es: Collection<Edge>) = es.toSet().filter { it in mine }.sumOf { it.km }
+        val scenes = c.scenes
+        fun point(l: Leg): Waypoint {
+            val s = scenes.firstOrNull { it.km >= l.fromKm && it.km <= l.toKm }
+            val k = s?.km ?: (l.fromKm + l.toKm) / 2
+            val (la, lo) = c.track.at(k)
+            return Waypoint(s?.name ?: (l.edge.road.ifEmpty { l.to.name } + " 경유"), la, lo, k)
+        }
+        var best: List<Waypoint>? = null
+        var bestScore = -1.0
+        for (x in legs.indices) for (y in x + 1 until legs.size) {
+            val a = legs[x].value
+            val b = legs[y].value
+            val got = path(entry, a.from) + a.edge + path(a.to, b.from) + b.edge + path(b.to, exit)
+            val pa = point(a)
+            val pb = point(b)
+            val bonus = listOf(pa, pb).count { w -> scenes.any { it.name == w.name } } * 0.05
+            val score = overlap(got) / mine.sumOf { it.km } + bonus
+            if (score > bestScore) {
+                bestScore = score
+                // 내비가 알려 주는 남은 거리를 이름으로 맞추니 이름이 겹치면 안 된다
+                best = listOf(pa, if (pb.name == pa.name) Waypoint(pb.name + " 2", pb.lat, pb.lon, pb.km) else pb)
+            }
+        }
+        return best ?: c.waypoints
+    }
+
+    // id에서 출발한 시간 기준 최단 경로 나무(도착 지점 → 거기로 들어온 조각)
+    private fun dijkstra(g: Graph, id: String): Map<String, Pair<Edge, Boolean>> {
+        val dist = hashMapOf(id to 0.0)
+        val prev = HashMap<String, Pair<Edge, Boolean>>()
+        val done = HashSet<String>()
+        while (true) {
+            val u = dist.entries.filter { it.key !in done }.minByOrNull { it.value }?.key ?: break
+            done += u
+            for ((e, rev) in g.adj[u].orEmpty()) {
+                val v = if (rev) e.a else e.b
+                val d = dist.getValue(u) + e.km / e.kmh * 60
+                if (d < (dist[v.id] ?: Double.MAX_VALUE)) {
+                    dist[v.id] = d
+                    prev[v.id] = e to rev
+                }
+            }
+        }
+        return prev
+    }
+
     private fun connector(a: Node, b: Node) =
         Edge(a, b, "연결 구간", max(0.05, a.km(b) * DETOUR), CONNECTOR_KMH, 0, 0, 0, emptySet(), connector = true)
 

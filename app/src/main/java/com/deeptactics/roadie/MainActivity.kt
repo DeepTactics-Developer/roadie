@@ -9,8 +9,12 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.text.SpannableStringBuilder
+import android.text.Spanned
+import android.text.style.ForegroundColorSpan
 import android.util.Log
 import android.view.View
+import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.Switch
 import android.widget.TextView
@@ -138,12 +142,15 @@ class MainActivity : Activity() {
         }
         Session.homeFail = { say(Lines.NOT_HEARD) }
 
+        // 예시 문장은 목록 한 줄씩. 눌러도 말한 것과 같다
         val chips = findViewById<LinearLayout>(R.id.chips)
         for (ex in examples()) {
-            chips.addView(TextView(this, null, 0, R.style.Chip).apply {
-                text = ex
+            chips.addView(TextView(this, null, 0, R.style.Example).apply {
+                text = SpannableStringBuilder(ex).append("  →").also {
+                    it.setSpan(ForegroundColorSpan(getColor(R.color.accent)), ex.length, it.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                }
                 setOnClickListener { onWish(ex) }
-            }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginEnd = 16 })
+            }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         }
         findViewById<MicButton>(R.id.mic).setOnClickListener {
             if (listener.listening) listener.stop()
@@ -177,7 +184,7 @@ class MainActivity : Activity() {
 
     private fun showCourse() {
         heard?.let { findViewById<TextView>(R.id.heard).text = "“$it”" }
-        findViewById<TextView>(R.id.where).text = "출발 · 지금 위치 " + RoadieApp.here.label
+        findViewById<TextView>(R.id.where).text = "지금 위치 · " + RoadieApp.here.label
         val c = course
         findViewById<RouteView>(R.id.route).course = c
         findViewById<TextView>(R.id.wish).text = wish.summary()
@@ -193,13 +200,26 @@ class MainActivity : Activity() {
         }
         findViewById<TextView>(R.id.name).text = c.name
         val shares = listOf(Tag.SEA, Tag.RIVER, Tag.LAKE, Tag.MOUNTAIN).filter { c.share(it) >= 0.1 }.joinToString(" · ") { "${it.word} ${(c.share(it) * 100).toInt()}%" }
-        findViewById<TextView>(R.id.stats).text = "약 %d분 · %.1f km · 신호 %d개".format(c.minutes.toInt(), c.km, c.signals) +
+        findViewById<TextView>(R.id.stats).text = "약 %d분   %.1f km   신호 %d개".format(c.minutes.toInt(), c.km, c.signals) +
             if (shares.isEmpty()) "" else "\n$shares"
-        val f = c.fork
+        findViewById<TextView>(R.id.scenes).text = sceneList(c)
+    }
+
+    // 장면은 지도 핀과 같은 색 점으로, 갈림길과 연결 구간은 그 아래에
+    private fun sceneList(c: Course): CharSequence {
+        val b = SpannableStringBuilder()
+        fun line(mark: String, color: Int, body: String, bodyColor: Int = getColor(R.color.ink)) {
+            if (b.isNotEmpty()) b.append("\n")
+            val at = b.length
+            b.append(mark).setSpan(ForegroundColorSpan(color), at, b.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            val at2 = b.length
+            b.append("  ").append(body).setSpan(ForegroundColorSpan(bodyColor), at2, b.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        }
+        for (s in c.scenes) line("●", RouteView.kindColor(this, s.kind), s.name)
+        c.fork?.let { line("◆", getColor(R.color.warn), "${it.node.name}에서 갈림길 · ${it.left.label} / ${it.right.label}") }
         val conn = c.legs.filter { it.edge.connector }.sumOf { it.edge.km }
-        findViewById<TextView>(R.id.scenes).text = (c.scenes.map { "●  ${it.name}" } +
-            listOfNotNull(f?.let { "◆  ${it.node.name}에서 갈림길 (${it.left.label} / ${it.right.label})" }) +
-            listOf("↳  연결 구간 %.1f km (지도 분석 없음)".format(conn))).joinToString("\n")
+        line("┄", getColor(R.color.accent), "연결 구간 %.1f km · 지도 분석 없음".format(conn), getColor(R.color.ink2))
+        return b
     }
 
     // 지금 위치 근처 도로에 많은 성격 순서(두 조각 이상 있는 것만)
@@ -346,12 +366,13 @@ class MainActivity : Activity() {
         val clock = SimpleDateFormat("HH:mm", Locale.KOREA)
         findViewById<TextView>(R.id.bubble).text = r.line
         findViewById<TextView>(R.id.title).text = r.course.name
-        findViewById<TextView>(R.id.stats).text = "%.1f km · %d분 주행".format(r.km, r.minutes) + if (r.simulated) " (시뮬레이션 ${r.simMinutes}분)" else ""
+        findViewById<TextView>(R.id.stats).text = "%.1f km   %d분 주행".format(r.km, r.minutes) + if (r.simulated) "   시뮬레이션 ${r.simMinutes}분" else ""
         findViewById<TextView>(R.id.note).text = "“${r.note}”"
-        findViewById<TextView>(R.id.scenes).text = r.passed.joinToString("\n") { (s, at) -> "${clock.format(Date(at))}   ${s.name}" }.ifEmpty { "-" }
+        findViewById<TextView>(R.id.scenes).text = r.passed.joinToString("\n") { (s, at) -> "${clock.format(Date(at))}   ${s.name}" }.ifEmpty { "이번엔 장면 없이 달렸어" }
         findViewById<RouteView>(R.id.route).apply {
             labels = false
             showFork = false
+            driven = true
             course = r.course
             km = r.km
         }
@@ -372,13 +393,16 @@ class MainActivity : Activity() {
         val list = findViewById<LinearLayout>(R.id.list)
         for (d in drives) {
             list.addView(TextView(this).apply {
-                text = "${d.date}\n${d.name}  ·  %.1f km  ·  ${d.minutes}분\n${d.scenes.joinToString("  →  ").ifEmpty { "-" }}\n“${d.note}”".format(d.km)
-                setTextColor(getColor(R.color.text))
-                textSize = 24f
+                val head = "${d.date}   ${d.name}"
+                text = SpannableStringBuilder(head).also { it.setSpan(android.text.style.StyleSpan(Typeface.BOLD), 0, head.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE) }
+                    .append("\n%.1f km · %d분 · ${d.scenes.joinToString(" → ").ifEmpty { "장면 없음" }}".format(d.km, d.minutes))
+                    .append("\n“${d.note}”")
+                setTextColor(getColor(R.color.ink))
+                textSize = 22f
                 setLineSpacing(8f, 1f)
-                setBackgroundResource(R.drawable.bg_card)
-                setPadding(36, 28, 36, 28)
-            }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { bottomMargin = 20 })
+                setBackgroundResource(R.drawable.bg_row)
+                setPadding(4, 28, 4, 28)
+            }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         }
         findViewById<View>(R.id.back).setOnClickListener { showHome(greet = false) }
     }

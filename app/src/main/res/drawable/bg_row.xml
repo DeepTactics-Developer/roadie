@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 위아래 선 없이 아래쪽 가는 선 하나. 누르면 옅은 주홍 -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_pressed="true">
+        <layer-list>
+            <item><shape><solid android:color="@color/accent_soft" /></shape></item>
+            <item android:gravity="bottom" android:height="1dp"><shape><solid android:color="@color/rule" /></shape></item>
+        </layer-list>
+    </item>
+    <item>
+        <layer-list>
+            <item android:gravity="bottom" android:height="1dp"><shape><solid android:color="@color/rule" /></shape></item>
+        </layer-list>
+    </item>
+</selector>
