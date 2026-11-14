@@ -131,7 +131,7 @@ class MainActivity : Activity() {
         startedAt = System.currentTimeMillis()
         lastTick = SystemClock.elapsedRealtime()
 
-        naviCall {
+        naviCall(NAVI_VOICE_MS) {
             requestRoute(
                 RouteInfo(
                     latitude = course.destLat, longitude = course.destLon, displayLongitude = null, displayLatitude = null,
@@ -150,10 +150,11 @@ class MainActivity : Activity() {
     }
 
     // 경로 요청이나 취소를 하면 내비 앱이 앞으로 나온다. 안내는 뒤에서 하고 화면은 다시 가져온다
-    private fun naviCall(block: NaviHelper.() -> Unit) {
+    private fun naviCall(holdMs: Long = 1500, block: NaviHelper.() -> Unit) {
         if (!naviReady) return
         reclaim = true
         handler.postDelayed({ reclaim = false }, 5000)
+        speaker.hold(holdMs)
         navi.block()
     }
 
@@ -260,5 +261,7 @@ class MainActivity : Activity() {
         const val TAG = "ROADIE"
         const val TICK_MS = 50L
         const val REQ_SPEED = 1
+        // 내비 안내 음성은 요청 뒤 늦으면 6초쯤 지나서 나온다
+        const val NAVI_VOICE_MS = 7000L
     }
 }

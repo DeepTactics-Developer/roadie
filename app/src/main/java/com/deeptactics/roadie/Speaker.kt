@@ -6,8 +6,12 @@ import ai.pleos.playground.tts.constant.Mode
 import ai.pleos.playground.tts.listener.EventListener
 import ai.pleos.playground.tts.listener.OnInitializeListener
 import android.content.Context
+import android.media.AudioAttributes
+import android.media.AudioManager
+import android.media.AudioPlaybackConfiguration
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.util.Log
@@ -21,8 +25,14 @@ class Speaker(context: Context, private val onSpeaking: (Boolean) -> Unit) {
     private var pleosReady = false
     private var basicReady = false
     private var pending: String? = null
+    private var holdUntil = 0L
+    private val audio = context.getSystemService(AudioManager::class.java)
+    private val playback = object : AudioManager.AudioPlaybackCallback() {
+        override fun onPlaybackConfigChanged(configs: MutableList<AudioPlaybackConfiguration>) = flush()
+    }
 
     init {
+        audio.registerAudioPlaybackCallback(playback, ui)
         runCatching { startPleos(context) }.onFailure {
             Log.w(MainActivity.TAG, "pleos tts 시작 실패", it)
             fallBack(context)
@@ -84,8 +94,19 @@ class Speaker(context: Context, private val onSpeaking: (Boolean) -> Unit) {
         flush()
     }
 
+    // 경로를 요청하거나 취소하면 내비가 안내 음성을 낸다. 그게 끝날 때까지 말을 미룬다
+    fun hold(ms: Long) {
+        holdUntil = SystemClock.uptimeMillis() + ms
+        ui.postAtTime({ flush() }, holdUntil + 10)
+    }
+
+    private fun naviTalking() = audio.activePlaybackConfigurations.any {
+        it.audioAttributes.usage == AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE
+    }
+
     private fun flush() {
         val text = pending ?: return
+        if (SystemClock.uptimeMillis() < holdUntil || naviTalking()) return
         when {
             pleosReady -> pleos?.speak(text, true)
             basicReady -> basic?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "roadie")
@@ -102,6 +123,7 @@ class Speaker(context: Context, private val onSpeaking: (Boolean) -> Unit) {
 
     fun release() {
         stop()
+        audio.unregisterAudioPlaybackCallback(playback)
         pleos?.release()
         basic?.shutdown()
     }
