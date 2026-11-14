@@ -36,12 +36,12 @@ class MicButton(context: Context, attrs: AttributeSet?) : View(context, attrs) {
             val t = SystemClock.uptimeMillis() % 1500 / 1500f
             for (k in 0 until 2) {
                 val f = (t + k * 0.5f) % 1f
-                p.color = 0xE8572A or ((1 - f) * 110).toInt().shl(24)
+                p.color = 0x2559F0 or ((1 - f) * 110).toInt().shl(24)
                 canvas.drawCircle(cx, cy, rad * (1 + 0.38f * f), p)
             }
             postInvalidateOnAnimation()
         }
-        p.color = if (listening) 0xFFE8572A.toInt() else if (isPressed) 0xFF3A3631.toInt() else 0xFF1E1C19.toInt()
+        p.color = if (listening) 0xFF2559F0.toInt() else if (isPressed) 0xFF333944.toInt() else 0xFF14181F.toInt()
         canvas.drawCircle(cx, cy, rad, p)
 
         // 마이크 모양

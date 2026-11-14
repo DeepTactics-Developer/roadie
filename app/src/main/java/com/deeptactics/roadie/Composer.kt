@@ -188,7 +188,7 @@ object Composer {
     }
 
     // 막혀서 늦어질 때 예정 시간에 맞춰 돌아오는 길. 지금 달리는 조각 끝에서 갈라진다.
-    // 남은 예상 시간이 budgetMin 안에 드는 것 중 장면이 많이 남는 것(같으면 오래 달리는 것), 그런 게 없으면 가장 빠른 것.
+    // 남은 예상 시간이 budgetMin 안에 드는 것 중 장면이 많이 남고 연결 구간이 짧은 것, 그런 게 없으면 가장 빠른 것.
     // 원래 길보다 SAVE_MIN분 넘게 줄지 않으면 null
     fun shortcut(g: Graph, c: Course, km: Double, budgetMin: Double): Course? {
         val i = c.legs.indexOfFirst { km < it.toKm }
@@ -227,9 +227,12 @@ object Composer {
                 at = if (step.second) step.first.b.id else step.first.a.id
             }
             val out = connector(exit, here)
-            c.detour(i + 1, path + (out to false)) to rest + dist.getValue(exit.id) + out.km / out.kmh * 60
+            Triple(c.detour(i + 1, path + (out to false)), rest + dist.getValue(exit.id) + out.km / out.kmh * 60, out.km)
         }
-        val pick = options.filter { it.second <= budgetMin }.maxWithOrNull(compareBy({ o -> o.first.scenes.count { it.km > km } }, { it.second }))
+        // 시간 안에 드는 것 중 장면이 많이 남는 것. 같으면 원래 도착 시간에 가깝고(남는 분) 연결 구간이 짧은 것(1km에 3분으로 친다).
+        // 연결 구간은 직선으로 어림한 값이라 길면 실제로는 왔던 길을 되돌아가기 쉽다
+        val pick = options.filter { it.second <= budgetMin }
+            .maxWithOrNull(compareBy({ o -> o.first.scenes.count { it.km > km } }, { -((budgetMin - it.second) + it.third * 3) }))
             ?: options.minByOrNull { it.second } ?: return null
         if (c.planMinutes(km, c.km) - pick.second < SAVE_MIN) return null
         return pick.first

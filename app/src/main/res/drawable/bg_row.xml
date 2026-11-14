@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 위아래 선 없이 아래쪽 가는 선 하나. 누르면 옅은 주홍 -->
+<!-- 위아래 선 없이 아래쪽 가는 선 하나. 누르면 옅은 파랑 -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_pressed="true">
         <layer-list>

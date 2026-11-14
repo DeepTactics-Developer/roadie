@@ -1,27 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- 종이 지도책 느낌. 바탕은 따뜻한 종이색, 글자는 먹색, 경로는 주홍 한 가지 -->
-    <color name="paper">#F3F0E8</color>
-    <color name="panel">#FAF8F3</color>
+    <!-- 차가운 밝은 회색 바탕에 먹색 글씨, 색은 내비 경로처럼 파랑 한 가지 -->
+    <color name="paper">#F1F3F6</color>
+    <color name="panel">#FFFFFF</color>
     <color name="card">#FFFFFF</color>
-    <color name="rule">#E2DCD0</color>
-    <color name="ink">#1E1C19</color>
-    <color name="ink2">#6B655B</color>
-    <color name="ink3">#A69F93</color>
-    <color name="accent">#E8572A</color>
-    <color name="accent_dark">#C8471F</color>
-    <color name="accent_soft">#FBE6DC</color>
-    <color name="warn">#C98A00</color>
+    <color name="rule">#DDE2E8</color>
+    <color name="ink">#14181F</color>
+    <color name="ink2">#586272</color>
+    <color name="ink3">#9AA3AF</color>
+    <color name="accent">#2559F0</color>
+    <color name="accent_dark">#1C46C4</color>
+    <color name="accent_soft">#E7EDFE</color>
+    <color name="warn">#D69300</color>
 
-    <color name="scene_sea">#2C7FB8</color>
-    <color name="scene_lake">#24968A</color>
-    <color name="scene_river">#3A86C8</color>
-    <color name="scene_mountain">#5B8C3A</color>
-    <color name="scene_bridge">#7A5BB5</color>
+    <color name="scene_sea">#0B8FB3</color>
+    <color name="scene_lake">#13A08F</color>
+    <color name="scene_river">#3BA0E0</color>
+    <color name="scene_mountain">#4C9A3B</color>
+    <color name="scene_bridge">#8A5AC8</color>
 
-    <color name="map_land">#EAE5DA</color>
-    <color name="map_green">#DAE2C9</color>
-    <color name="map_water">#B7D1E0</color>
+    <color name="map_land">#EDF0F3</color>
+    <color name="map_green">#DCE8DD</color>
+    <color name="map_water">#C6DDF0</color>
     <color name="map_road">#FFFFFF</color>
-    <color name="map_casing">#D2CABA</color>
+    <color name="map_casing">#D3D9E0</color>
 </resources>

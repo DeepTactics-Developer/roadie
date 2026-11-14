@@ -52,7 +52,7 @@ class Edge(
     val lake: Double = 0.0, // 호숫가 비율
     val river: Double = 0.0, // 강변 비율
     val connector: Boolean = false, // 지금 위치와 지점을 잇는 구간. 지도 데이터가 없어 추정값이다
-    val shape: DoubleArray? = null, // a→b 도로 모양 [lat, lon, lat, lon, ...]. 연결 구간은 없다
+    @Volatile var shape: DoubleArray? = null, // a→b 도로 모양 [lat, lon, lat, lon, ...]. 연결 구간은 Connectors가 나중에 채운다
 )
 
 // 구글 폴리라인 형식(소수 5자리)을 푼다. tools/geo.py의 encode와 짝

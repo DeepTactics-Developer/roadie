@@ -20,6 +20,8 @@ class RouteView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
             base = null
             altTrack = null
             invalidate()
+            // 연결 구간의 실제 길 모양을 받아 오면 다시 그린다
+            if (v != null) Connectors.ensure(v) { post { if (course === v) refresh() } }
         }
     var km = -1.0 // 0 이상이면 지나온 길과 지금 위치를 그린다
     var labels = true
@@ -186,23 +188,25 @@ class RouteView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
             canvas.drawPath(path, line)
         }
 
-        // 코스. 흰 테두리 위에 색 선, 지도 분석이 없는 연결 구간은 점선
-        for (pass in 0..1) for (l in c.legs) {
-            trackPath(c, l.fromKm, l.toKm)
-            line.pathEffect = if (l.edge.connector && pass == 1) DashPathEffect(floatArrayOf(6f * u, 7f * u), 0f) else null
-            line.color = if (pass == 0) 0xFFFFFFFF.toInt() else accent
-            line.strokeWidth = (if (pass == 0) 13f else 7f) * u
-            if (!(l.edge.connector && pass == 0)) canvas.drawPath(path, line)
-        }
-        line.pathEffect = null
-
-        // 지나온 길은 흐리게
+        // 지나온 길을 먼저 깔고, 남은 길을 그 위에 그린다. 돌아오는 길이 지나온 길과 겹쳐도 남은 길이 보이게
         if (km > 0) {
             trackPath(c, 0.0, km.coerceAtMost(c.km))
             line.color = if (driven) accent else passedColor
             line.strokeWidth = (if (driven) 8f else 7f) * u
             canvas.drawPath(path, line)
         }
+
+        // 남은 코스. 흰 테두리 위에 색 선, 지도 분석이 없는 연결 구간은 점선
+        for (pass in 0..1) for (l in c.legs) {
+            val a = maxOf(l.fromKm, km)
+            if (a >= l.toKm) continue
+            trackPath(c, a, l.toKm)
+            line.pathEffect = if (l.edge.connector && pass == 1) DashPathEffect(floatArrayOf(6f * u, 7f * u), 0f) else null
+            line.color = if (pass == 0) 0xFFFFFFFF.toInt() else accent
+            line.strokeWidth = (if (pass == 0) 13f else 7f) * u
+            if (!(l.edge.connector && pass == 0)) canvas.drawPath(path, line)
+        }
+        line.pathEffect = null
 
         // 출발지(돌아올 곳)
         val (hx, hy) = at(c, 0.0)
@@ -246,6 +250,13 @@ class RouteView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
             fill.color = ink
             canvas.drawCircle(cx, cy, 9f * u, fill)
         }
+    }
+
+    fun refresh() {
+        course?.resetTrack()
+        altTrack = null
+        base = null
+        invalidate()
     }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {

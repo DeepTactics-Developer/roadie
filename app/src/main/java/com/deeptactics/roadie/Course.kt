@@ -145,7 +145,12 @@ class Course(val legs: List<Leg>, val segments: List<Segment> = legs.map { Segme
     // 지도에 그릴 점들
     val points get() = listOf(start) + legs.map { it.to }
 
-    val track by lazy { Track(legs) }
+    // 연결 구간 모양이 나중에 오면 resetTrack()으로 다시 만든다
+    private var trackCache: Track? = null
+    val track get() = trackCache ?: Track(legs).also { trackCache = it }
+    fun resetTrack() {
+        trackCache = null
+    }
 
     // 내비 경유지(둘까지). 내비가 우리 코스를 가장 비슷하게 따라오도록 Composer.waypoints가 골라 넣는다.
     // 아직 안 골랐으면 코스를 셋으로 나눈 지점 근처 지점

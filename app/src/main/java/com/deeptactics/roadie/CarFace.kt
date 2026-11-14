@@ -168,7 +168,7 @@ class CarFace(context: Context, attrs: AttributeSet?) : View(context, attrs) {
 
         // 듣는 중이면 옆으로 소리 물결
         if (mood == Mood.LISTENING) {
-            stroke.color = 0xAA6B655B.toInt()
+            stroke.color = 0xAA586272.toInt()
             stroke.strokeWidth = s * 0.02f
             for (k in 0 until 3) {
                 val rr = s * (0.1f + k * 0.07f) + (t * 40f % 20f)
@@ -187,7 +187,7 @@ class CarFace(context: Context, attrs: AttributeSet?) : View(context, attrs) {
             }
         }
         if (mood == Mood.SLEEPY) {
-            p.color = 0xAA6B655B.toInt()
+            p.color = 0xAA586272.toInt()
             p.textSize = s * (0.08f + 0.02f * sin(t))
             canvas.drawText("z", right - s * 0.05f, h * 0.18f - (t * 10f % 20f), p)
         }
@@ -196,10 +196,10 @@ class CarFace(context: Context, attrs: AttributeSet?) : View(context, attrs) {
     }
 
     companion object {
-        const val BODY = 0xFFE8572A.toInt()
-        const val ROOF = 0xFFB9431F.toInt()
-        const val GLASS = 0xFF2A2622.toInt()
-        const val INK = 0xFF1E1C19.toInt()
+        const val BODY = 0xFF2559F0.toInt()
+        const val ROOF = 0xFF1A3FB0.toInt()
+        const val GLASS = 0xFF1B1F27.toInt()
+        const val INK = 0xFF14181F.toInt()
     }
 
     private fun star(canvas: Canvas, x: Float, y: Float, k: Float) {
